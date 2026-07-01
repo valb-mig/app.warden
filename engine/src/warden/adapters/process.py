@@ -82,5 +82,5 @@ class ProcessAdapter(Adapter):
         uptime = time.time() - self._started_at if self._started_at else None
         return ProcessStatus(running=True, pid=proc.pid, ports=ports, uptime_seconds=uptime)
 
-    def logs(self, tail: int = 100) -> list[str]:
+    def logs(self, tail: int = 100, service: str | None = None) -> list[str]:
         return self._logs.tail(tail)

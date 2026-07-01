@@ -55,8 +55,11 @@ class Engine:
     def status(self, project_id: str) -> ProcessStatus:
         return self._adapter(project_id).status()
 
-    def logs(self, project_id: str, tail: int = 100) -> list[str]:
-        return self._adapter(project_id).logs(tail)
+    def logs(self, project_id: str, tail: int = 100, service: str | None = None) -> list[str]:
+        return self._adapter(project_id).logs(tail, service=service)
+
+    def services(self, project_id: str) -> list[str]:
+        return self._adapter(project_id).services()
 
     def history(self, project_id: str, limit: int = 50) -> list[dict]:
         if self.store is None:

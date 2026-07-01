@@ -17,6 +17,9 @@ services:
     command: ["sh", "-c", "i=0; while true; do echo tick $$i; i=$$((i+1)); sleep 1; done"]
     ports:
       - "{port}:80"
+  worker:
+    image: busybox:stable
+    command: ["sh", "-c", "i=0; while true; do echo worker-tick $$i; i=$$((i+1)); sleep 1; done"]
 """
 
 PORT = 18199
@@ -67,3 +70,20 @@ def test_stop_marks_not_running(docker_adapter: DockerAdapter) -> None:
     docker_adapter.stop()
 
     _wait_until(lambda: docker_adapter.status().running is False)
+
+
+def test_services_lists_all_compose_services(docker_adapter: DockerAdapter) -> None:
+    assert set(docker_adapter.services()) == {"app", "worker"}
+
+
+def test_logs_filtered_by_service_excludes_other_services(docker_adapter: DockerAdapter) -> None:
+    docker_adapter.start()
+
+    _wait_until(lambda: any("worker-tick" in line for line in docker_adapter.logs()))
+
+    app_logs = docker_adapter.logs(service="app")
+    assert any("tick" in line for line in app_logs)
+    assert not any("worker-tick" in line for line in app_logs)
+
+    worker_logs = docker_adapter.logs(service="worker")
+    assert any("worker-tick" in line for line in worker_logs)

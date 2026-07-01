@@ -75,6 +75,13 @@ export const api = {
   runAction: (c: ApiConfig, id: string, action: string) =>
     request<ActionResult>(c, `/projects/${id}/actions/${action}`, { method: "POST" }),
 
-  wsUrl: (c: ApiConfig, id: string) =>
-    `${c.baseUrl.replace(/^http/, "ws")}/ws/projects/${id}/logs?token=${encodeURIComponent(c.token)}`,
+  wsUrl: (c: ApiConfig, id: string, service?: string) => {
+    const url = new URL(`${c.baseUrl.replace(/^http/, "ws")}/ws/projects/${id}/logs`);
+    url.searchParams.set("token", c.token);
+    if (service) url.searchParams.set("service", service);
+    return url.toString();
+  },
+
+  services: (c: ApiConfig, id: string) =>
+    request<{ services: string[] }>(c, `/projects/${id}/services`),
 };

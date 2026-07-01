@@ -21,6 +21,10 @@ class LogsOut(BaseModel):
     lines: list[str]
 
 
+class ServicesOut(BaseModel):
+    services: list[str]
+
+
 class HistoryEventOut(BaseModel):
     project_id: str
     type: str

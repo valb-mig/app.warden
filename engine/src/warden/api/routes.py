@@ -6,6 +6,7 @@ from warden.api.schemas import (
     HistoryEventOut,
     LogsOut,
     ProjectOut,
+    ServicesOut,
     StatusOut,
 )
 from warden.config import ProjectConfig
@@ -54,10 +55,19 @@ def project_status(project_id: str, engine: Engine = Depends(get_engine)) -> Sta
 
 @router.get("/{project_id}/logs", response_model=LogsOut)
 def project_logs(
-    project_id: str, tail: int = 100, engine: Engine = Depends(get_engine)
+    project_id: str,
+    tail: int = 100,
+    service: str | None = None,
+    engine: Engine = Depends(get_engine),
 ) -> LogsOut:
     _project_or_404(engine, project_id)
-    return LogsOut(lines=engine.logs(project_id, tail))
+    return LogsOut(lines=engine.logs(project_id, tail, service=service))
+
+
+@router.get("/{project_id}/services", response_model=ServicesOut)
+def project_services(project_id: str, engine: Engine = Depends(get_engine)) -> ServicesOut:
+    _project_or_404(engine, project_id)
+    return ServicesOut(services=engine.services(project_id))
 
 
 @router.get("/{project_id}/history", response_model=list[HistoryEventOut])

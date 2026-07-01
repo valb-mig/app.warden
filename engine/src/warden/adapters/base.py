@@ -24,7 +24,11 @@ class Adapter(ABC):
     def status(self) -> ProcessStatus: ...
 
     @abstractmethod
-    def logs(self, tail: int = 100) -> list[str]: ...
+    def logs(self, tail: int = 100, service: str | None = None) -> list[str]: ...
 
     def set_on_exit(self, callback: Callable[[int], None]) -> None:  # noqa: B027
         """Chamado quando o processo termina sozinho (não via stop()). No-op por padrão."""
+
+    def services(self) -> list[str]:
+        """Serviços individuais (ex: containers de um compose). Vazio = processo único."""
+        return []

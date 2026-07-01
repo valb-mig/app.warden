@@ -55,10 +55,17 @@ class DockerAdapter(Adapter):
             return None
         return pid or None
 
-    def logs(self, tail: int = 100) -> list[str]:
-        result = self._compose("logs", "--no-color", "--tail", str(tail))
+    def logs(self, tail: int = 100, service: str | None = None) -> list[str]:
+        args = ["logs", "--no-color", "--tail", str(tail)]
+        if service:
+            args.append(service)
+        result = self._compose(*args)
         output = result.stdout + result.stderr
         return [line for line in output.splitlines() if line.strip()]
+
+    def services(self) -> list[str]:
+        result = self._compose("config", "--services")
+        return [line for line in result.stdout.splitlines() if line.strip()]
 
 
 def _parse_ps_json(output: str) -> list[dict]:

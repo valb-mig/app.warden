@@ -12,7 +12,10 @@ MAX_TAIL = 10_000
 
 @router.websocket("/ws/projects/{project_id}/logs")
 async def stream_logs(
-    websocket: WebSocket, project_id: str, token: str = Query(default="")
+    websocket: WebSocket,
+    project_id: str,
+    token: str = Query(default=""),
+    service: str | None = Query(default=None),
 ) -> None:
     if token != websocket.app.state.api_token:
         await websocket.close(code=4401)
@@ -24,7 +27,7 @@ async def stream_logs(
     sent = 0
     try:
         while True:
-            lines = engine.logs(project_id, tail=MAX_TAIL)
+            lines = engine.logs(project_id, tail=MAX_TAIL, service=service)
             for line in lines[sent:]:
                 await websocket.send_text(line)
             sent = len(lines)

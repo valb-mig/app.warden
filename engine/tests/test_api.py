@@ -90,6 +90,16 @@ def test_action_runs_and_returns_output(tmp_path: Path) -> None:
     assert "hi" in body["output"]
 
 
+def test_services_empty_for_single_process_project(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+
+    resp = client.get("/projects/demo/services", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"services": []}
+
+
 def test_unknown_action_returns_404(tmp_path: Path) -> None:
     _write_project(tmp_path, "demo", ["true"])
     client, token = _client(tmp_path)
