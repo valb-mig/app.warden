@@ -75,6 +75,7 @@ Ordem por dependência real (motor antes de API, API antes de front). Cada fase 
 
 - **Fase 7 (Tailscale/exposição remota) — pendente, retomar na próxima sessão.** Contexto: fases 1-6 fechadas e validadas (testes automatizados + smoke manual + browser real via Playwright). Front hoje só roda local (`127.0.0.1`); falta validar acesso remoto pelo celular via Tailscale e confirmar que o mesmo token bearer funciona nos dois cenários (local e remoto), conforme já decidido no CONTEXT.md.
 - Detecção de erro em app web (ex: PHP) sem tocar no projeto: desenho via tail de log (`laravel.log`/`error_log`) + regex `error_patterns` por adapter — falta detalhar edge cases (rotação de log, multi-linha de stacktrace).
+- **Sem hot-reload de `~/.warden/*.toml`.** `Registry.load()` só roda no boot do `warden serve`. Criar/editar um `.toml` com o servidor já rodando não aparece até reiniciar (`just cli serve` de novo). Achado testando `agenda-facil` (fase 5, validação real). Corrigir via watcher de arquivo ou endpoint `/reload` fica pra quando incomodar de verdade.
 
 ## Ideia de MVP (rascunho, não iniciar sem validar)
 
