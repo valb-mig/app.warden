@@ -32,6 +32,11 @@ class HistoryEventOut(BaseModel):
     created_at: str
 
 
+class ActionOut(BaseModel):
+    name: str
+    interactive: bool
+
+
 class ActionResultOut(BaseModel):
     exit_code: int
     output: str

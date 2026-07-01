@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from warden.api.deps import get_engine
 from warden.api.schemas import (
+    ActionOut,
     ActionResultOut,
     HistoryEventOut,
     LogsOut,
@@ -76,6 +77,12 @@ def project_history(
 ) -> list[dict]:
     _project_or_404(engine, project_id)
     return engine.history(project_id, limit)
+
+
+@router.get("/{project_id}/actions", response_model=list[ActionOut])
+def list_actions(project_id: str, engine: Engine = Depends(get_engine)) -> list[ActionOut]:
+    project = _project_or_404(engine, project_id)
+    return [ActionOut(name=a.name, interactive=a.interactive) for a in project.actions]
 
 
 @router.post("/{project_id}/actions/{action_name}", response_model=ActionResultOut)

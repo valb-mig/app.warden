@@ -26,6 +26,11 @@ export interface ActionResult {
   output: string;
 }
 
+export interface Action {
+  name: string;
+  interactive: boolean;
+}
+
 export interface ApiConfig {
   baseUrl: string;
   token: string;
@@ -71,6 +76,8 @@ export const api = {
 
   history: (c: ApiConfig, id: string, limit = 50) =>
     request<HistoryEvent[]>(c, `/projects/${id}/history?limit=${limit}`),
+
+  listActions: (c: ApiConfig, id: string) => request<Action[]>(c, `/projects/${id}/actions`),
 
   runAction: (c: ApiConfig, id: string, action: string) =>
     request<ActionResult>(c, `/projects/${id}/actions/${action}`, { method: "POST" }),

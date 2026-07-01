@@ -72,6 +72,27 @@ def test_start_status_stop_lifecycle(tmp_path: Path) -> None:
     assert client.post("/projects/demo/stop", headers=headers).status_code == 200
 
 
+def test_list_actions_returns_configured_actions(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        ["true"],
+        extra=(
+            '\n[[actions]]\nname = "hello"\ncmd = ["echo", "hi"]\n'
+            '\n[[actions]]\nname = "shell"\ncmd = ["bash"]\ninteractive = true\n'
+        ),
+    )
+    client, token = _client(tmp_path)
+
+    resp = client.get("/projects/demo/actions", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.status_code == 200
+    assert resp.json() == [
+        {"name": "hello", "interactive": False},
+        {"name": "shell", "interactive": True},
+    ]
+
+
 def test_action_runs_and_returns_output(tmp_path: Path) -> None:
     _write_project(
         tmp_path,

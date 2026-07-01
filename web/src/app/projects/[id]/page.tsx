@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Loader2, Play, Square } from "lucide-react";
 import { toast } from "sonner";
 
+import { ActionsCard } from "@/components/actions-card";
 import { ConnectCard } from "@/components/connect-card";
 import { HistoryTable } from "@/components/history-table";
 import { LogViewer } from "@/components/log-viewer";
@@ -132,6 +133,7 @@ function ProjectDetailContent({
         </CardContent>
       </Card>
 
+      <ActionsCard config={config} projectId={projectId} />
       <LogViewer config={config} projectId={projectId} />
       <HistoryTable config={config} projectId={projectId} />
     </div>
