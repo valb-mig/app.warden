@@ -1,0 +1,126 @@
+import sys
+import time
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from warden.api.app import create_app
+
+
+def _write_project(config_dir: Path, project_id: str, cmd: list[str], extra: str = "") -> None:
+    (config_dir / f"{project_id}.toml").write_text(
+        f'id = "{project_id}"\ntype = "raw"\npath = "{config_dir}"\n\n'
+        f"[start]\ncmd = {cmd!r}\n{extra}"
+    )
+
+
+def _client(tmp_path: Path) -> tuple[TestClient, str]:
+    app = create_app(tmp_path)
+    return TestClient(app), app.state.api_token
+
+
+def test_cors_allows_browser_origin(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+
+    resp = client.get(
+        "/projects",
+        headers={"Authorization": f"Bearer {token}", "Origin": "http://localhost:3000"},
+    )
+
+    assert resp.headers["access-control-allow-origin"] == "*"
+
+
+def test_requires_auth(tmp_path: Path) -> None:
+    client, _ = _client(tmp_path)
+    resp = client.get("/projects")
+    assert resp.status_code == 401
+
+
+def test_list_projects(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+
+    resp = client.get("/projects", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.status_code == 200
+    assert resp.json() == [{"id": "demo", "name": "demo", "type": "raw", "group": None}]
+
+
+def test_unknown_project_returns_404(tmp_path: Path) -> None:
+    client, token = _client(tmp_path)
+    resp = client.get("/projects/nope/status", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 404
+
+
+def test_start_status_stop_lifecycle(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", [sys.executable, "-c", "import time; time.sleep(5)"])
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.post("/projects/demo/start", headers=headers).status_code == 200
+
+    deadline = time.time() + 3
+    running = False
+    while time.time() < deadline:
+        if client.get("/projects/demo/status", headers=headers).json()["running"]:
+            running = True
+            break
+        time.sleep(0.05)
+    assert running
+
+    assert client.post("/projects/demo/stop", headers=headers).status_code == 200
+
+
+def test_action_runs_and_returns_output(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        ["true"],
+        extra='\n[[actions]]\nname = "hello"\ncmd = ["echo", "hi"]\n',
+    )
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/projects/demo/actions/hello", headers=headers)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["exit_code"] == 0
+    assert "hi" in body["output"]
+
+
+def test_unknown_action_returns_404(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+    resp = client.post(
+        "/projects/demo/actions/nope", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 404
+
+
+def test_ws_logs_requires_token(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, _ = _client(tmp_path)
+
+    try:
+        with client.websocket_connect("/ws/projects/demo/logs?token=errado"):
+            raise AssertionError("deveria ter fechado a conexão")
+    except Exception:
+        pass
+
+
+def test_ws_logs_streams_output(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        [sys.executable, "-u", "-c", "print('hello')"],
+        extra="capture_stdout = true\n",
+    )
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post("/projects/demo/start", headers=headers)
+
+    with client.websocket_connect(f"/ws/projects/demo/logs?token={token}") as ws:
+        message = ws.receive_text()
+        assert "hello" in message
