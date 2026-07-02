@@ -35,3 +35,35 @@ web-lint:
 # build de produção do front
 web-build:
     cd web && pnpm build
+
+# imprime os comandos pra subir engine + front (um em cada terminal) e o link de acesso (local/LAN/tailscale)
+boot:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    web_port=3000
+
+    bg=$'\033[1;32m'; g=$'\033[0;32m'; d=$'\033[2;32m'; c=$'\033[1;36m'; r=$'\033[0m'
+
+    printf '%s\n' "${bg}░█░█░█▀█░█▀▄░█▀▄░█▀▀░█▀█${r}"
+    printf '%s\n' "${bg}░█▄█░█▀█░█▀▄░█░█░█▀▀░█░█${r}"
+    printf '%s\n' "${bg}░▀░▀░▀░▀░▀░▀░▀▀░░▀▀▀░▀░▀${r}"
+    printf '%s\n' "${g}────────────────────────${r}"
+    echo
+    printf '%s\n' "${d}roda cada comando num terminal separado${r}"
+    echo
+    printf '%s\n' "  ${g}\$${r} just cli serve --host 0.0.0.0"
+    printf '%s\n' "  ${g}\$${r} just web-dev"
+    echo
+    printf '%s\n' "${d}acesso${r}"
+    printf '%s\n' "  ${d}local       ${r}${c}http://localhost:${web_port}${r}"
+    if command -v tailscale >/dev/null 2>&1; then
+        ts_ip="$(tailscale ip -4 2>/dev/null || true)"
+        [ -n "$ts_ip" ] && printf '%s\n' "  ${d}tailscale   ${r}${c}http://$ts_ip:${web_port}${r}"
+    fi
+    lan_ip="$(hostname -I 2>/dev/null | awk '{print $1}')" || true
+    if [ -z "$lan_ip" ]; then
+        lan_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}')" || true
+    fi
+    [ -n "$lan_ip" ] && printf '%s\n' "  ${d}rede local  ${r}${c}http://$lan_ip:${web_port}${r}"
+    printf '%s\n' "  ${d}token       ${r}~/.warden/api_token"
