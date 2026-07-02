@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,32 @@ import {
 import { useSettings } from "@/lib/settings";
 
 export function SettingsSheet() {
-  const { settings, setSettings, clear } = useSettings();
-  const [baseUrl, setBaseUrl] = useState(settings?.baseUrl ?? "");
-  const [token, setToken] = useState(settings?.token ?? "");
+  const { activeMachine, updateMachine, removeMachine } = useSettings();
+  const [name, setName] = useState(activeMachine?.name ?? "");
+  const [baseUrl, setBaseUrl] = useState(activeMachine?.baseUrl ?? "");
+  const [token, setToken] = useState(activeMachine?.token ?? "");
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reseta o form com os dados atuais da máquina toda vez que o sheet abre
+      setName(activeMachine?.name ?? "");
+      setBaseUrl(activeMachine?.baseUrl ?? "");
+      setToken(activeMachine?.token ?? "");
+    }
+  }, [open, activeMachine]);
+
+  if (!activeMachine) return null;
+
   function handleSave() {
-    setSettings({ baseUrl: baseUrl.replace(/\/$/, ""), token });
+    if (!activeMachine) return;
+    updateMachine(activeMachine.id, { name, baseUrl: baseUrl.replace(/\/$/, ""), token });
+    setOpen(false);
+  }
+
+  function handleRemove() {
+    if (!activeMachine) return;
+    removeMachine(activeMachine.id);
     setOpen(false);
   }
 
@@ -35,10 +54,14 @@ export function SettingsSheet() {
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Conexão com o Warden</SheetTitle>
-          <SheetDescription>Atualiza URL da API e token sem perder o histórico.</SheetDescription>
+          <SheetTitle>Conexão com {activeMachine.name}</SheetTitle>
+          <SheetDescription>Atualiza nome, URL da API e token sem perder o histórico.</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-4 px-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="settings-name">Nome da máquina</Label>
+            <Input id="settings-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="settings-base-url">URL da API</Label>
             <Input id="settings-base-url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
@@ -55,8 +78,8 @@ export function SettingsSheet() {
         </div>
         <SheetFooter>
           <Button onClick={handleSave}>Salvar</Button>
-          <Button variant="outline" onClick={clear}>
-            Desconectar
+          <Button variant="outline" onClick={handleRemove}>
+            Remover esta máquina
           </Button>
         </SheetFooter>
       </SheetContent>

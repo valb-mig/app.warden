@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ShieldHalf } from "lucide-react";
 
+import { MachineSwitcher } from "@/components/machine-switcher";
 import { SettingsSheet } from "@/components/settings-sheet";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Header() {
   return (
@@ -10,7 +12,11 @@ export function Header() {
         <ShieldHalf className="size-5" />
         Warden
       </Link>
-      <SettingsSheet />
+      <div className="flex items-center gap-1">
+        <MachineSwitcher />
+        <ThemeToggle />
+        <SettingsSheet />
+      </div>
     </header>
   );
 }

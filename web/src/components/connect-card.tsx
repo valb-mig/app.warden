@@ -10,13 +10,14 @@ import { Label } from "@/components/ui/label";
 import { useSettings } from "@/lib/settings";
 
 export function ConnectCard() {
-  const { setSettings } = useSettings();
+  const { addMachine } = useSettings();
+  const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:8420");
   const [token, setToken] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSettings({ baseUrl: baseUrl.replace(/\/$/, ""), token });
+    addMachine({ name, baseUrl: baseUrl.replace(/\/$/, ""), token });
   }
 
   return (
@@ -34,6 +35,16 @@ export function ConnectCard() {
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="name">Nome da máquina</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Trabalho, Casa, Faculdade..."
+                required
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="baseUrl">URL da API</Label>
               <Input

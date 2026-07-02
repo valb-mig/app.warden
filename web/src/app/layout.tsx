@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Header } from "@/components/header";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SettingsProvider } from "@/lib/settings";
@@ -31,15 +32,18 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <SettingsProvider>
-          <TooltipProvider>
-            <Header />
-            <main className="flex flex-1 flex-col">{children}</main>
-            <Toaster />
-          </TooltipProvider>
-        </SettingsProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <SettingsProvider>
+            <TooltipProvider>
+              <Header />
+              <main className="flex flex-1 flex-col">{children}</main>
+              <Toaster />
+            </TooltipProvider>
+          </SettingsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
