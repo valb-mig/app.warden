@@ -3,7 +3,9 @@ import sys
 import time
 from pathlib import Path
 
-from warden.engine import Engine
+import pytest
+
+from warden.engine import ConfirmationRequired, Engine
 from warden.events import Event, EventType
 from warden.store import EventStore
 
@@ -177,3 +179,58 @@ def test_boot_starts_git_watcher_and_emits_git_behind_event(tmp_path: Path) -> N
         assert notifier.calls == []  # notify.on_git_behind não foi ligado neste projeto
     finally:
         engine.shutdown()
+
+
+def _write_project_with_action(config_dir: Path, project_id: str, action_toml: str) -> None:
+    projects_dir = config_dir / "projects"
+    projects_dir.mkdir(parents=True, exist_ok=True)
+    (projects_dir / f"{project_id}.toml").write_text(
+        f'id = "{project_id}"\ntype = "raw"\npath = "{config_dir}"\n\n'
+        f'[start]\ncmd = ["true"]\n\n{action_toml}'
+    )
+
+
+def test_destructive_action_without_confirmation_raises(tmp_path: Path) -> None:
+    _write_project_with_action(
+        tmp_path,
+        "demo",
+        '[[actions]]\nname = "wipe"\ncmd = ["true"]\ndestructive = true\n',
+    )
+    engine = Engine(tmp_path)
+    engine.boot()
+
+    with pytest.raises(ConfirmationRequired):
+        engine.run_action("demo", "wipe")
+
+
+def test_destructive_action_confirmed_runs_and_audits(tmp_path: Path) -> None:
+    _write_project_with_action(
+        tmp_path,
+        "demo",
+        '[[actions]]\nname = "wipe"\ncmd = ["echo", "wiped"]\ndestructive = true\n',
+    )
+    store = EventStore(tmp_path / "warden.db")
+    engine = Engine(tmp_path, store=store)
+    engine.boot()
+
+    result = engine.run_action("demo", "wipe", confirmed=True)
+
+    assert result.exit_code == 0
+    audit = engine.action_audit("demo")
+    assert len(audit) == 1
+    assert audit[0]["action_name"] == "wipe"
+    assert audit[0]["confirmed"] is True
+    assert audit[0]["cmd"] == ["echo", "wiped"]
+
+
+def test_non_destructive_action_skips_audit(tmp_path: Path) -> None:
+    _write_project_with_action(
+        tmp_path, "demo", '[[actions]]\nname = "hello"\ncmd = ["echo", "hi"]\n'
+    )
+    store = EventStore(tmp_path / "warden.db")
+    engine = Engine(tmp_path, store=store)
+    engine.boot()
+
+    engine.run_action("demo", "hello")
+
+    assert engine.action_audit("demo") == []

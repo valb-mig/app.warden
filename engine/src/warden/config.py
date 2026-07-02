@@ -39,6 +39,7 @@ class ActionConfig(BaseModel):
     name: str
     cmd: list[str]
     interactive: bool = False
+    destructive: bool = False
 
 
 class ProjectConfig(BaseModel):

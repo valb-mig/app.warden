@@ -145,8 +145,14 @@ def _build_php(path: Path) -> dict:
     kwargs: dict = {
         "start": StartConfig(cmd=["php", "artisan", "serve"], capture_stdout=True),
         "actions": [
-            ActionConfig(name="migrate", cmd=["php", "artisan", "migrate", "--force"]),
-            ActionConfig(name="seed", cmd=["php", "artisan", "db:seed", "--force"]),
+            ActionConfig(
+                name="migrate",
+                cmd=["php", "artisan", "migrate", "--force"],
+                destructive=True,
+            ),
+            ActionConfig(
+                name="seed", cmd=["php", "artisan", "db:seed", "--force"], destructive=True
+            ),
             ActionConfig(name="tinker", cmd=["php", "artisan", "tinker"], interactive=True),
         ],
     }

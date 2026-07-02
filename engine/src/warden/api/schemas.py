@@ -40,6 +40,7 @@ class HistoryEventOut(BaseModel):
 class ActionOut(BaseModel):
     name: str
     interactive: bool
+    destructive: bool
 
 
 class ActionResultOut(BaseModel):
@@ -69,3 +70,12 @@ class GitCommandResultOut(BaseModel):
     exit_code: int
     output: str
     refused: bool
+
+
+class ActionAuditOut(BaseModel):
+    project_id: str
+    action_name: str
+    cmd: list[str]
+    confirmed: bool
+    exit_code: int
+    created_at: str

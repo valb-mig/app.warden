@@ -90,8 +90,8 @@ def test_list_actions_returns_configured_actions(tmp_path: Path) -> None:
 
     assert resp.status_code == 200
     assert resp.json() == [
-        {"name": "hello", "interactive": False},
-        {"name": "shell", "interactive": True},
+        {"name": "hello", "interactive": False, "destructive": False},
+        {"name": "shell", "interactive": True, "destructive": False},
     ]
 
 
@@ -111,6 +111,62 @@ def test_action_runs_and_returns_output(tmp_path: Path) -> None:
     body = resp.json()
     assert body["exit_code"] == 0
     assert "hi" in body["output"]
+
+
+def test_destructive_action_requires_confirmation(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        ["true"],
+        extra='\n[[actions]]\nname = "wipe"\ncmd = ["echo", "wiped"]\ndestructive = true\n',
+    )
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/projects/demo/actions/wipe", headers=headers)
+    assert resp.status_code == 409
+
+    resp = client.post("/projects/demo/actions/wipe?confirm=true", headers=headers)
+    assert resp.status_code == 200
+    assert "wiped" in resp.json()["output"]
+
+
+def test_destructive_action_writes_audit_log(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        ["true"],
+        extra='\n[[actions]]\nname = "wipe"\ncmd = ["echo", "wiped"]\ndestructive = true\n',
+    )
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    client.post("/projects/demo/actions/wipe?confirm=true", headers=headers)
+    resp = client.get("/projects/demo/actions/audit", headers=headers)
+
+    assert resp.status_code == 200
+    entries = resp.json()
+    assert len(entries) == 1
+    assert entries[0]["action_name"] == "wipe"
+    assert entries[0]["confirmed"] is True
+    assert entries[0]["exit_code"] == 0
+    assert entries[0]["cmd"] == ["echo", "wiped"]
+
+
+def test_non_destructive_action_does_not_write_audit_log(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        ["true"],
+        extra='\n[[actions]]\nname = "hello"\ncmd = ["echo", "hi"]\n',
+    )
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    client.post("/projects/demo/actions/hello", headers=headers)
+    resp = client.get("/projects/demo/actions/audit", headers=headers)
+
+    assert resp.json() == []
 
 
 def test_services_empty_for_single_process_project(tmp_path: Path) -> None:

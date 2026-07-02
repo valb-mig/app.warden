@@ -188,7 +188,9 @@ class Engine:
             return []
         return self.store.history(project_id, limit)
 
-    def run_action(self, project_id: str, action_name: str) -> ActionResult:
+    def run_action(
+        self, project_id: str, action_name: str, confirmed: bool = False
+    ) -> ActionResult:
         project = self.registry.get(project_id)
         try:
             action = next(a for a in project.actions if a.name == action_name)
@@ -196,7 +198,20 @@ class Engine:
             raise KeyError(f"ação {action_name!r} não encontrada em {project_id!r}") from None
         if action.interactive:
             raise ValueError(f"ação {action_name!r} é interativa, não suportada via API")
+        if action.destructive and not confirmed:
+            raise ConfirmationRequired(
+                f"ação {action_name!r} é destrutiva — chame com confirmed=True"
+            )
         result = subprocess.run(
             action.cmd, cwd=project.path, capture_output=True, text=True, timeout=300
         )
+        if action.destructive and self.store is not None:
+            self.store.record_action(
+                project_id, action_name, action.cmd, confirmed, result.returncode
+            )
         return ActionResult(exit_code=result.returncode, output=result.stdout + result.stderr)
+
+    def action_audit(self, project_id: str, limit: int = 50) -> list[dict]:
+        if self.store is None:
+            return []
+        return self.store.action_audit(project_id, limit)

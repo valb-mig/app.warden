@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from warden.api.deps import get_engine
 from warden.api.schemas import (
+    ActionAuditOut,
     ActionOut,
     ActionResultOut,
     GitCommandResultOut,
@@ -146,18 +147,34 @@ def project_history(
 @router.get("/{project_id}/actions", response_model=list[ActionOut])
 def list_actions(project_id: str, engine: Engine = Depends(get_engine)) -> list[ActionOut]:
     project = _project_or_404(engine, project_id)
-    return [ActionOut(name=a.name, interactive=a.interactive) for a in project.actions]
+    return [
+        ActionOut(name=a.name, interactive=a.interactive, destructive=a.destructive)
+        for a in project.actions
+    ]
 
 
 @router.post("/{project_id}/actions/{action_name}", response_model=ActionResultOut)
 def run_action(
-    project_id: str, action_name: str, engine: Engine = Depends(get_engine)
+    project_id: str,
+    action_name: str,
+    confirm: bool = False,
+    engine: Engine = Depends(get_engine),
 ) -> ActionResultOut:
     _project_or_404(engine, project_id)
     try:
-        result = engine.run_action(project_id, action_name)
+        result = engine.run_action(project_id, action_name, confirmed=confirm)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+    except ConfirmationRequired as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     return ActionResultOut(exit_code=result.exit_code, output=result.output)
+
+
+@router.get("/{project_id}/actions/audit", response_model=list[ActionAuditOut])
+def action_audit(
+    project_id: str, limit: int = 50, engine: Engine = Depends(get_engine)
+) -> list[dict]:
+    _project_or_404(engine, project_id)
+    return engine.action_audit(project_id, limit)
