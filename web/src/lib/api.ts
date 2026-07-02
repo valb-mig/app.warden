@@ -125,7 +125,7 @@ export const api = {
   },
 
   services: (c: ApiConfig, id: string) =>
-    request<{ services: string[] }>(c, `/projects/${id}/services`),
+    request<{ services: string[]; error_patterns: string[] }>(c, `/projects/${id}/services`),
 
   languages: (c: ApiConfig, id: string) =>
     request<{ languages: string[] }>(c, `/projects/${id}/languages`),

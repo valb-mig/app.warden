@@ -120,7 +120,26 @@ def test_services_empty_for_single_process_project(tmp_path: Path) -> None:
     resp = client.get("/projects/demo/services", headers={"Authorization": f"Bearer {token}"})
 
     assert resp.status_code == 200
-    assert resp.json() == {"services": []}
+    assert resp.json() == {"services": [], "error_patterns": []}
+
+
+def test_services_merges_error_patterns_across_log_sources(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "demo",
+        ["true"],
+        extra=(
+            '\n[[log_sources]]\nname = "app"\ntype = "file"\npath = "./app.log"\n'
+            'error_patterns = ["ERROR", "FATAL"]\n'
+            '\n[[log_sources]]\nname = "worker"\ntype = "file"\npath = "./worker.log"\n'
+            'error_patterns = ["FATAL", "Exception"]\n'
+        ),
+    )
+    client, token = _client(tmp_path)
+
+    resp = client.get("/projects/demo/services", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.json()["error_patterns"] == ["ERROR", "FATAL", "Exception"]
 
 
 def test_languages_endpoint_detects_python_manifest(tmp_path: Path) -> None:

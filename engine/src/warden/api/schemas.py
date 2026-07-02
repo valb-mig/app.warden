@@ -23,6 +23,7 @@ class LogsOut(BaseModel):
 
 class ServicesOut(BaseModel):
     services: list[str]
+    error_patterns: list[str] = []
 
 
 class LanguagesOut(BaseModel):

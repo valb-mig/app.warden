@@ -71,8 +71,13 @@ def project_logs(
 
 @router.get("/{project_id}/services", response_model=ServicesOut)
 def project_services(project_id: str, engine: Engine = Depends(get_engine)) -> ServicesOut:
-    _project_or_404(engine, project_id)
-    return ServicesOut(services=engine.services(project_id))
+    project = _project_or_404(engine, project_id)
+    patterns: list[str] = []
+    for source in project.log_sources:
+        for pattern in source.error_patterns:
+            if pattern not in patterns:
+                patterns.append(pattern)
+    return ServicesOut(services=engine.services(project_id), error_patterns=patterns)
 
 
 @router.get("/{project_id}/languages", response_model=LanguagesOut)
