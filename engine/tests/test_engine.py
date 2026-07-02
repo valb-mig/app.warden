@@ -99,3 +99,29 @@ def test_notifier_called_only_when_project_opts_in(tmp_path: Path) -> None:
     time.sleep(0.3)
 
     assert [e.project_id for e in notifier.calls] == ["notify-on"]
+
+
+def test_boot_starts_file_error_watcher_and_emits_error_event(tmp_path: Path) -> None:
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    log_file = log_dir / "app.log"
+    log_file.write_text("")
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    (projects_dir / "demo.toml").write_text(
+        f'id = "demo"\ntype = "raw"\npath = "{tmp_path}"\n\n'
+        '[[log_sources]]\nname = "app"\ntype = "file"\npath = "./logs/app.log"\n'
+        'error_patterns = ["ERROR"]\n'
+    )
+    engine = Engine(tmp_path)
+    engine.boot()
+    events: list = []
+    engine.bus.subscribe(events.append)
+
+    try:
+        with log_file.open("a") as f:
+            f.write("[2024-01-01 00:00:00] production.ERROR: boom\n")
+        _wait_until(lambda: any(e.type == EventType.ERROR for e in events), timeout=6.0)
+        assert "boom" in events[0].message
+    finally:
+        engine.shutdown()

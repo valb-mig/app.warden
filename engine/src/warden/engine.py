@@ -1,13 +1,16 @@
 """Engine — junta registry + adapters + event bus, mantém instância viva por projeto."""
 
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from warden.adapters.base import Adapter, ProcessStatus
 from warden.adapters.factory import create_adapter
 from warden.bus import EventBus
+from warden.config import ProjectConfig
 from warden.events import Event, EventType
+from warden.file_error_watcher import FileErrorWatcher
 from warden.notifier import Notifier, NullNotifier
 from warden.registry import Registry
 from warden.store import EventStore
@@ -34,6 +37,7 @@ class Engine:
             self.bus.subscribe(store.record)
         self.bus.subscribe(self._maybe_notify)
         self._adapters: dict[str, Adapter] = {}
+        self._file_watchers: list[FileErrorWatcher] = []
 
     def _maybe_notify(self, event: Event) -> None:
         try:
@@ -47,6 +51,45 @@ class Engine:
 
     def boot(self) -> None:
         self.registry.load()
+        self._start_file_watchers()
+
+    def shutdown(self) -> None:
+        for watcher in self._file_watchers:
+            watcher.stop()
+        self._file_watchers.clear()
+
+    def _start_file_watchers(self) -> None:
+        for project in self.registry.all():
+            for log_source in project.log_sources:
+                if log_source.type != "file" or not log_source.error_patterns:
+                    continue
+                watcher = FileErrorWatcher(
+                    path=self._resolve_log_path(project, log_source.path),
+                    patterns=log_source.error_patterns,
+                    on_error=self._make_file_error_handler(project.id, log_source.name),
+                )
+                watcher.start()
+                self._file_watchers.append(watcher)
+
+    @staticmethod
+    def _resolve_log_path(project: ProjectConfig, log_path: str | None) -> Path:
+        assert log_path is not None
+        path = Path(log_path)
+        return path if path.is_absolute() else Path(project.path) / path
+
+    def _make_file_error_handler(
+        self, project_id: str, source_name: str
+    ) -> Callable[[str], None]:
+        def handler(entry: str) -> None:
+            self.bus.publish(
+                Event(
+                    project_id=project_id,
+                    type=EventType.ERROR,
+                    message=f"[{source_name}] {entry[:500]}",
+                )
+            )
+
+        return handler
 
     def _adapter(self, project_id: str) -> Adapter:
         if project_id not in self._adapters:
