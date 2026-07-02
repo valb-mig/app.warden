@@ -8,6 +8,7 @@ from warden.api.schemas import (
     GitCommitOut,
     GitInfoOut,
     HistoryEventOut,
+    LanguagesOut,
     LogsOut,
     ProjectOut,
     ServicesOut,
@@ -72,6 +73,12 @@ def project_logs(
 def project_services(project_id: str, engine: Engine = Depends(get_engine)) -> ServicesOut:
     _project_or_404(engine, project_id)
     return ServicesOut(services=engine.services(project_id))
+
+
+@router.get("/{project_id}/languages", response_model=LanguagesOut)
+def project_languages(project_id: str, engine: Engine = Depends(get_engine)) -> LanguagesOut:
+    _project_or_404(engine, project_id)
+    return LanguagesOut(languages=engine.languages(project_id))
 
 
 @router.get("/{project_id}/git", response_model=GitInfoOut | None)

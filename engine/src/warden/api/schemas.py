@@ -25,6 +25,10 @@ class ServicesOut(BaseModel):
     services: list[str]
 
 
+class LanguagesOut(BaseModel):
+    languages: list[str]
+
+
 class HistoryEventOut(BaseModel):
     project_id: str
     type: str

@@ -6,6 +6,7 @@ import { ChevronRight, Loader2, Play, RefreshCw, Square } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConnectCard } from "@/components/connect-card";
+import { LanguageIcons } from "@/components/language-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -158,9 +159,10 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
                 <TableCell>
                   <Link
                     href={`/projects/${project.id}`}
-                    className="flex items-center gap-1 font-medium hover:underline"
+                    className="flex items-center gap-2 font-medium hover:underline"
                   >
                     {project.name}
+                    <LanguageIcons config={config} projectId={project.id} />
                     <ChevronRight className="size-3.5 text-muted-foreground" />
                   </Link>
                   {project.group && (

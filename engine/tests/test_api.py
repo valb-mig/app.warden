@@ -123,6 +123,17 @@ def test_services_empty_for_single_process_project(tmp_path: Path) -> None:
     assert resp.json() == {"services": []}
 
 
+def test_languages_endpoint_detects_python_manifest(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n")
+    client, token = _client(tmp_path)
+
+    resp = client.get("/projects/demo/languages", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.status_code == 200
+    assert "python" in resp.json()["languages"]
+
+
 def test_unknown_action_returns_404(tmp_path: Path) -> None:
     _write_project(tmp_path, "demo", ["true"])
     client, token = _client(tmp_path)

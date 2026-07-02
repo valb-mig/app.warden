@@ -10,6 +10,7 @@ import { ActionsCard } from "@/components/actions-card";
 import { ConnectCard } from "@/components/connect-card";
 import { GitCard } from "@/components/git-card";
 import { HistoryTable } from "@/components/history-table";
+import { LanguageIcons } from "@/components/language-icons";
 import { LogViewer } from "@/components/log-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,10 @@ function ProjectDetailContent({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-2 text-base">
-            <span className="font-mono">{projectId}</span>
+            <span className="flex items-center gap-2">
+              <span className="font-mono">{projectId}</span>
+              <LanguageIcons config={config} projectId={projectId} />
+            </span>
             <span className="flex items-center gap-1.5">
               {running && (git?.behind ?? 0) > 0 && (
                 <Badge variant="destructive" title="processo rodando uma versão atrás do origin">

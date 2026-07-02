@@ -19,6 +19,7 @@ from warden.git import (
     git_info,
 )
 from warden.git_watcher import GitWatcher
+from warden.languages import detect_languages
 from warden.notifier import Notifier, NullNotifier
 from warden.registry import Registry
 from warden.store import EventStore
@@ -177,6 +178,10 @@ class Engine:
         if verb in CONFIRM_VERBS and not confirmed:
             raise ConfirmationRequired(f"verbo git {verb!r} exige confirmação")
         return git_command(Path(project.path), verb)
+
+    def languages(self, project_id: str) -> list[str]:
+        project = self.registry.get(project_id)
+        return detect_languages(Path(project.path))
 
     def history(self, project_id: str, limit: int = 50) -> list[dict]:
         if self.store is None:
