@@ -8,6 +8,7 @@ from warden.adapters.base import Adapter, ProcessStatus
 from warden.adapters.factory import create_adapter
 from warden.bus import EventBus
 from warden.events import Event, EventType
+from warden.notifier import Notifier, NullNotifier
 from warden.registry import Registry
 from warden.store import EventStore
 
@@ -19,13 +20,30 @@ class ActionResult:
 
 
 class Engine:
-    def __init__(self, config_dir: Path, store: EventStore | None = None):
+    def __init__(
+        self,
+        config_dir: Path,
+        store: EventStore | None = None,
+        notifier: Notifier | None = None,
+    ):
         self.registry = Registry(config_dir)
         self.bus = EventBus()
         self.store = store
+        self.notifier = notifier or NullNotifier()
         if store is not None:
             self.bus.subscribe(store.record)
+        self.bus.subscribe(self._maybe_notify)
         self._adapters: dict[str, Adapter] = {}
+
+    def _maybe_notify(self, event: Event) -> None:
+        try:
+            project = self.registry.get(event.project_id)
+        except KeyError:
+            return
+        if event.type == EventType.ERROR and project.notify.on_error:
+            self.notifier.notify(event, project)
+        elif event.type == EventType.FINISHED and project.notify.on_finished:
+            self.notifier.notify(event, project)
 
     def boot(self) -> None:
         self.registry.load()

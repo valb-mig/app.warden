@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from warden.engine import Engine
-from warden.events import EventType
+from warden.events import Event, EventType
 from warden.store import EventStore
 
 
@@ -16,12 +16,24 @@ def _wait_until(predicate, timeout: float = 3.0) -> None:
     raise AssertionError("condição não satisfeita dentro do timeout")
 
 
-def _write_project(config_dir: Path, project_id: str, cmd: list[str]) -> None:
+def _write_project(
+    config_dir: Path, project_id: str, cmd: list[str], notify_on_error: bool = False
+) -> None:
+    notify = f"\n[notify]\non_error = {str(notify_on_error).lower()}\n" if notify_on_error else ""
     projects_dir = config_dir / "projects"
     projects_dir.mkdir(parents=True, exist_ok=True)
     (projects_dir / f"{project_id}.toml").write_text(
         f'id = "{project_id}"\ntype = "raw"\npath = "{config_dir}"\n\n[start]\ncmd = {cmd!r}\n'
+        + notify
     )
+
+
+class _FakeNotifier:
+    def __init__(self) -> None:
+        self.calls: list[Event] = []
+
+    def notify(self, event: Event, project) -> None:
+        self.calls.append(event)
 
 
 def _engine_with_store(tmp_path: Path) -> tuple[Engine, list]:
@@ -67,3 +79,23 @@ def test_process_erroring_on_its_own_emits_error(tmp_path: Path) -> None:
     _wait_until(lambda: any(e.type == EventType.ERROR for e in events))
 
     assert [e.type for e in events] == [EventType.STARTED, EventType.ERROR]
+
+
+def test_notifier_called_only_when_project_opts_in(tmp_path: Path) -> None:
+    _write_project(
+        tmp_path,
+        "notify-on",
+        [sys.executable, "-c", "import sys; sys.exit(1)"],
+        notify_on_error=True,
+    )
+    _write_project(tmp_path, "notify-off", [sys.executable, "-c", "import sys; sys.exit(1)"])
+    notifier = _FakeNotifier()
+    engine = Engine(tmp_path, notifier=notifier)
+    engine.boot()
+
+    engine.start("notify-on")
+    engine.start("notify-off")
+    _wait_until(lambda: len(notifier.calls) >= 1)
+    time.sleep(0.3)
+
+    assert [e.project_id for e in notifier.calls] == ["notify-on"]

@@ -7,7 +7,9 @@ from warden.api.deps import verify_token
 from warden.api.routes import router
 from warden.api.ws import router as ws_router
 from warden.auth import load_or_create_token
+from warden.config import load_global_config
 from warden.engine import Engine
+from warden.notifier import create_notifier
 from warden.store import EventStore
 
 
@@ -15,7 +17,9 @@ def create_app(config_dir: Path) -> FastAPI:
     app = FastAPI(title="Warden API")
 
     store = EventStore(config_dir / "warden.db")
-    engine = Engine(config_dir, store=store)
+    global_config = load_global_config(config_dir / "config.toml")
+    notifier = create_notifier(global_config)
+    engine = Engine(config_dir, store=store, notifier=notifier)
     engine.boot()
 
     app.state.engine = engine

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from warden.config import load_project_config
+from warden.config import GlobalConfig, load_global_config, load_project_config
 
 DOCKER_TOML = """
 id = "leadmaster"
@@ -62,3 +62,28 @@ def test_load_python_project_defaults(tmp_path: Path) -> None:
     assert project.start is not None
     assert project.start.cmd == ["python", "main.py"]
     assert project.notify.on_error is False  # default
+
+
+def test_load_global_config_creates_default_file_when_missing(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+
+    config = load_global_config(config_path)
+
+    assert config == GlobalConfig()
+    assert config_path.exists()
+    assert "api_port" in config_path.read_text()
+
+    # segunda leitura carrega o arquivo já criado, não sobrescreve
+    reloaded = load_global_config(config_path)
+    assert reloaded == GlobalConfig()
+
+
+def test_load_global_config_reads_existing_file(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text('api_port = 9000\nnotify_channel = "ntfy"\nntfy_topic = "alerts"\n')
+
+    config = load_global_config(config_path)
+
+    assert config.api_port == 9000
+    assert config.notify_channel == "ntfy"
+    assert config.ntfy_topic == "alerts"

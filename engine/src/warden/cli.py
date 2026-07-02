@@ -6,6 +6,7 @@ import typer
 
 from warden.config import load_global_config
 from warden.engine import Engine
+from warden.notifier import create_notifier
 from warden.registry import PROJECTS_DIRNAME
 from warden.scaffold import build_config, render_toml
 from warden.store import EventStore
@@ -18,7 +19,9 @@ DEFAULT_DB_PATH = DEFAULT_CONFIG_DIR / "warden.db"
 
 def _engine() -> Engine:
     store = EventStore(DEFAULT_DB_PATH)
-    engine = Engine(DEFAULT_CONFIG_DIR, store=store)
+    global_config = load_global_config(DEFAULT_CONFIG_DIR / "config.toml")
+    notifier = create_notifier(global_config)
+    engine = Engine(DEFAULT_CONFIG_DIR, store=store, notifier=notifier)
     engine.boot()
     return engine
 
