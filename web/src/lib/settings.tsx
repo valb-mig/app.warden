@@ -33,21 +33,25 @@ function makeId(): string {
 }
 
 function loadInitialState(): { machines: Machine[]; activeMachineId: string | null } {
-  const rawMachines = localStorage.getItem(MACHINES_KEY);
-  if (rawMachines) {
-    const machines: Machine[] = JSON.parse(rawMachines);
-    const activeMachineId = localStorage.getItem(ACTIVE_ID_KEY);
-    return { machines, activeMachineId };
-  }
+  try {
+    const rawMachines = localStorage.getItem(MACHINES_KEY);
+    if (rawMachines) {
+      const machines: Machine[] = JSON.parse(rawMachines);
+      const activeMachineId = localStorage.getItem(ACTIVE_ID_KEY);
+      return { machines, activeMachineId };
+    }
 
-  const legacy = localStorage.getItem(LEGACY_SETTINGS_KEY);
-  if (legacy) {
-    const parsed: Settings = JSON.parse(legacy);
-    const machine: Machine = { id: makeId(), name: "Minha máquina", ...parsed };
-    localStorage.setItem(MACHINES_KEY, JSON.stringify([machine]));
-    localStorage.setItem(ACTIVE_ID_KEY, machine.id);
-    localStorage.removeItem(LEGACY_SETTINGS_KEY);
-    return { machines: [machine], activeMachineId: machine.id };
+    const legacy = localStorage.getItem(LEGACY_SETTINGS_KEY);
+    if (legacy) {
+      const parsed: Settings = JSON.parse(legacy);
+      const machine: Machine = { id: makeId(), name: "Minha máquina", ...parsed };
+      localStorage.setItem(MACHINES_KEY, JSON.stringify([machine]));
+      localStorage.setItem(ACTIVE_ID_KEY, machine.id);
+      localStorage.removeItem(LEGACY_SETTINGS_KEY);
+      return { machines: [machine], activeMachineId: machine.id };
+    }
+  } catch {
+    // dado corrompido no localStorage: cai pro estado vazio em vez de travar hidratação
   }
 
   return { machines: [], activeMachineId: null };
