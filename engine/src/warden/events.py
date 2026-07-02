@@ -7,6 +7,7 @@ class EventType(StrEnum):
     STOPPED = "stopped"
     FINISHED = "finished"
     ERROR = "error"
+    GIT_BEHIND = "git_behind"
 
 
 @dataclass

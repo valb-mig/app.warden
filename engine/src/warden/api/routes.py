@@ -4,6 +4,9 @@ from warden.api.deps import get_engine
 from warden.api.schemas import (
     ActionOut,
     ActionResultOut,
+    GitCommandResultOut,
+    GitCommitOut,
+    GitInfoOut,
     HistoryEventOut,
     LogsOut,
     ProjectOut,
@@ -11,7 +14,7 @@ from warden.api.schemas import (
     StatusOut,
 )
 from warden.config import ProjectConfig
-from warden.engine import Engine
+from warden.engine import ConfirmationRequired, Engine
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -69,6 +72,55 @@ def project_logs(
 def project_services(project_id: str, engine: Engine = Depends(get_engine)) -> ServicesOut:
     _project_or_404(engine, project_id)
     return ServicesOut(services=engine.services(project_id))
+
+
+@router.get("/{project_id}/git", response_model=GitInfoOut | None)
+def project_git(project_id: str, engine: Engine = Depends(get_engine)) -> GitInfoOut | None:
+    _project_or_404(engine, project_id)
+    info = engine.git_info(project_id)
+    if info is None:
+        return None
+    commit = info.last_commit
+    return GitInfoOut(
+        branch=info.branch,
+        dirty=info.dirty,
+        dirty_count=info.dirty_count,
+        ahead=info.ahead,
+        behind=info.behind,
+        has_remote=info.has_remote,
+        last_commit=(
+            GitCommitOut(
+                hash=commit.hash,
+                subject=commit.subject,
+                author=commit.author,
+                relative=commit.relative,
+            )
+            if commit is not None
+            else None
+        ),
+    )
+
+
+@router.post("/{project_id}/git/{verb}", response_model=GitCommandResultOut)
+def project_git_command(
+    project_id: str,
+    verb: str,
+    confirm: bool = False,
+    engine: Engine = Depends(get_engine),
+) -> GitCommandResultOut:
+    _project_or_404(engine, project_id)
+    try:
+        result = engine.git_command(project_id, verb, confirmed=confirm)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except ConfirmationRequired as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return GitCommandResultOut(
+        ok=result.ok,
+        exit_code=result.exit_code,
+        output=result.output,
+        refused=result.refused,
+    )
 
 
 @router.get("/{project_id}/history", response_model=list[HistoryEventOut])

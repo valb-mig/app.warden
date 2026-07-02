@@ -52,6 +52,31 @@ def test_load_docker_project(tmp_path: Path) -> None:
     assert project.actions[0].name == "migrate"
 
 
+def test_git_watch_defaults_off(tmp_path: Path) -> None:
+    toml_file = tmp_path / "leadmaster.toml"
+    toml_file.write_text(DOCKER_TOML)
+
+    project = load_project_config(toml_file)
+
+    assert project.git.watch is False
+    assert project.git.interval == 300
+    assert project.git.remote == "origin"
+    assert project.notify.on_git_behind is False
+
+
+def test_git_watch_configured(tmp_path: Path) -> None:
+    toml_file = tmp_path / "leadmaster.toml"
+    toml_file.write_text(
+        DOCKER_TOML + "\n[git]\nwatch = true\ninterval = 60\nremote = \"upstream\"\n"
+    )
+
+    project = load_project_config(toml_file)
+
+    assert project.git.watch is True
+    assert project.git.interval == 60
+    assert project.git.remote == "upstream"
+
+
 def test_load_python_project_defaults(tmp_path: Path) -> None:
     toml_file = tmp_path / "caffeshop-bot.toml"
     toml_file.write_text(PYTHON_TOML)

@@ -11,6 +11,14 @@ from warden.bus import EventBus
 from warden.config import ProjectConfig
 from warden.events import Event, EventType
 from warden.file_error_watcher import FileErrorWatcher
+from warden.git import (
+    CONFIRM_VERBS,
+    GitCommandResult,
+    GitInfo,
+    git_command,
+    git_info,
+)
+from warden.git_watcher import GitWatcher
 from warden.notifier import Notifier, NullNotifier
 from warden.registry import Registry
 from warden.store import EventStore
@@ -20,6 +28,10 @@ from warden.store import EventStore
 class ActionResult:
     exit_code: int
     output: str
+
+
+class ConfirmationRequired(Exception):
+    """Ação marcada `destructive = true` chamada sem `confirmed=True`."""
 
 
 class Engine:
@@ -38,6 +50,7 @@ class Engine:
         self.bus.subscribe(self._maybe_notify)
         self._adapters: dict[str, Adapter] = {}
         self._file_watchers: list[FileErrorWatcher] = []
+        self._git_watchers: list[GitWatcher] = []
 
     def _maybe_notify(self, event: Event) -> None:
         try:
@@ -48,15 +61,21 @@ class Engine:
             self.notifier.notify(event, project)
         elif event.type == EventType.FINISHED and project.notify.on_finished:
             self.notifier.notify(event, project)
+        elif event.type == EventType.GIT_BEHIND and project.notify.on_git_behind:
+            self.notifier.notify(event, project)
 
     def boot(self) -> None:
         self.registry.load()
         self._start_file_watchers()
+        self._start_git_watchers()
 
     def shutdown(self) -> None:
         for watcher in self._file_watchers:
             watcher.stop()
         self._file_watchers.clear()
+        for watcher in self._git_watchers:
+            watcher.stop()
+        self._git_watchers.clear()
 
     def _start_file_watchers(self) -> None:
         for project in self.registry.all():
@@ -70,6 +89,31 @@ class Engine:
                 )
                 watcher.start()
                 self._file_watchers.append(watcher)
+
+    def _start_git_watchers(self) -> None:
+        for project in self.registry.all():
+            if not project.git.watch:
+                continue
+            watcher = GitWatcher(
+                path=Path(project.path),
+                remote=project.git.remote,
+                interval=project.git.interval,
+                on_behind=self._make_git_behind_handler(project.id, project.git.remote),
+            )
+            watcher.start()
+            self._git_watchers.append(watcher)
+
+    def _make_git_behind_handler(self, project_id: str, remote: str) -> Callable[[int], None]:
+        def handler(behind: int) -> None:
+            self.bus.publish(
+                Event(
+                    project_id=project_id,
+                    type=EventType.GIT_BEHIND,
+                    message=f"{behind} commit(s) atrás de {remote}",
+                )
+            )
+
+        return handler
 
     @staticmethod
     def _resolve_log_path(project: ProjectConfig, log_path: str | None) -> Path:
@@ -121,6 +165,18 @@ class Engine:
 
     def services(self, project_id: str) -> list[str]:
         return self._adapter(project_id).services()
+
+    def git_info(self, project_id: str) -> GitInfo | None:
+        project = self.registry.get(project_id)
+        return git_info(Path(project.path))
+
+    def git_command(
+        self, project_id: str, verb: str, confirmed: bool = False
+    ) -> GitCommandResult:
+        project = self.registry.get(project_id)
+        if verb in CONFIRM_VERBS and not confirmed:
+            raise ConfirmationRequired(f"verbo git {verb!r} exige confirmação")
+        return git_command(Path(project.path), verb)
 
     def history(self, project_id: str, limit: int = 50) -> list[dict]:
         if self.store is None:

@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -123,5 +124,56 @@ def test_boot_starts_file_error_watcher_and_emits_error_event(tmp_path: Path) ->
             f.write("[2024-01-01 00:00:00] production.ERROR: boom\n")
         _wait_until(lambda: any(e.type == EventType.ERROR for e in events), timeout=6.0)
         assert "boom" in events[0].message
+    finally:
+        engine.shutdown()
+
+
+def _git(path: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(path), *args], check=True, capture_output=True, text=True)
+
+
+def test_boot_starts_git_watcher_and_emits_git_behind_event(tmp_path: Path) -> None:
+    remote = tmp_path / "remote.git"
+    remote.mkdir()
+    _git(remote, "init", "--bare", "-b", "main")
+
+    up = tmp_path / "up"
+    up.mkdir()
+    _git(up, "init", "-b", "main")
+    _git(up, "config", "user.email", "up@warden.local")
+    _git(up, "config", "user.name", "Up")
+    (up / "a.txt").write_text("x")
+    _git(up, "add", "a.txt")
+    _git(up, "commit", "-m", "base")
+    _git(up, "remote", "add", "origin", str(remote))
+    _git(up, "push", "-u", "origin", "main")
+
+    down = tmp_path / "down"
+    subprocess.run(["git", "clone", str(remote), str(down)], check=True, capture_output=True)
+    _git(down, "config", "user.email", "down@warden.local")
+    _git(down, "config", "user.name", "Down")
+
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    (projects_dir / "demo.toml").write_text(
+        f'id = "demo"\ntype = "raw"\npath = "{down}"\n\n'
+        '[start]\ncmd = ["true"]\n\n'
+        "[git]\nwatch = true\ninterval = 0.2\n"
+    )
+
+    notifier = _FakeNotifier()
+    engine = Engine(tmp_path, notifier=notifier)
+    engine.boot()
+    events: list = []
+    engine.bus.subscribe(events.append)
+
+    try:
+        (up / "b.txt").write_text("novo")
+        _git(up, "add", "b.txt")
+        _git(up, "commit", "-m", "novo commit")
+        _git(up, "push", "origin", "main")
+
+        _wait_until(lambda: any(e.type == EventType.GIT_BEHIND for e in events), timeout=6.0)
+        assert notifier.calls == []  # notify.on_git_behind não foi ligado neste projeto
     finally:
         engine.shutdown()

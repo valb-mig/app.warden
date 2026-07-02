@@ -8,13 +8,14 @@ import { toast } from "sonner";
 
 import { ActionsCard } from "@/components/actions-card";
 import { ConnectCard } from "@/components/connect-card";
+import { GitCard } from "@/components/git-card";
 import { HistoryTable } from "@/components/history-table";
 import { LogViewer } from "@/components/log-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, ApiError, type ProjectStatus } from "@/lib/api";
+import { api, ApiError, type GitInfo, type ProjectStatus } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 
 const STATUS_POLL_MS = 3000;
@@ -47,7 +48,16 @@ function ProjectDetailContent({
 }) {
   const config = { baseUrl, token };
   const [status, setStatus] = useState<ProjectStatus | null>(null);
+  const [git, setGit] = useState<GitInfo | null>(null);
   const [pending, setPending] = useState(false);
+
+  const refreshGit = useCallback(() => {
+    api
+      .git(config, projectId)
+      .then(setGit)
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseUrl, token, projectId]);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -64,6 +74,10 @@ function ProjectDetailContent({
     const interval = setInterval(refreshStatus, STATUS_POLL_MS);
     return () => clearInterval(interval);
   }, [refreshStatus]);
+
+  useEffect(() => {
+    refreshGit();
+  }, [refreshGit]);
 
   async function handleToggle() {
     setPending(true);
@@ -94,15 +108,22 @@ function ProjectDetailContent({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between text-base">
+          <CardTitle className="flex items-center justify-between gap-2 text-base">
             <span className="font-mono">{projectId}</span>
-            {status ? (
-              <Badge variant={running ? "default" : "secondary"}>
-                {running ? "rodando" : "parado"}
-              </Badge>
-            ) : (
-              <Skeleton className="h-5 w-16" />
-            )}
+            <span className="flex items-center gap-1.5">
+              {running && (git?.behind ?? 0) > 0 && (
+                <Badge variant="destructive" title="processo rodando uma versão atrás do origin">
+                  desatualizado
+                </Badge>
+              )}
+              {status ? (
+                <Badge variant={running ? "default" : "secondary"}>
+                  {running ? "rodando" : "parado"}
+                </Badge>
+              ) : (
+                <Skeleton className="h-5 w-16" />
+              )}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-6">
@@ -133,6 +154,7 @@ function ProjectDetailContent({
         </CardContent>
       </Card>
 
+      <GitCard config={config} projectId={projectId} git={git} onRefresh={refreshGit} />
       <ActionsCard config={config} projectId={projectId} />
       <LogViewer config={config} projectId={projectId} />
       <HistoryTable config={config} projectId={projectId} />

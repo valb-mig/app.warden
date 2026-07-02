@@ -31,6 +31,32 @@ export interface Action {
   interactive: boolean;
 }
 
+export interface GitCommit {
+  hash: string;
+  subject: string;
+  author: string;
+  relative: string;
+}
+
+export interface GitInfo {
+  branch: string;
+  dirty: boolean;
+  dirty_count: number;
+  ahead: number | null;
+  behind: number | null;
+  has_remote: boolean;
+  last_commit: GitCommit | null;
+}
+
+export type GitVerb = "fetch" | "sync" | "pull" | "push";
+
+export interface GitCommandResult {
+  ok: boolean;
+  exit_code: number;
+  output: string;
+  refused: boolean;
+}
+
 export interface ApiConfig {
   baseUrl: string;
   token: string;
@@ -76,6 +102,15 @@ export const api = {
 
   history: (c: ApiConfig, id: string, limit = 50) =>
     request<HistoryEvent[]>(c, `/projects/${id}/history?limit=${limit}`),
+
+  git: (c: ApiConfig, id: string) => request<GitInfo | null>(c, `/projects/${id}/git`),
+
+  gitCommand: (c: ApiConfig, id: string, verb: GitVerb, confirm = false) =>
+    request<GitCommandResult>(
+      c,
+      `/projects/${id}/git/${verb}${confirm ? "?confirm=true" : ""}`,
+      { method: "POST" },
+    ),
 
   listActions: (c: ApiConfig, id: string) => request<Action[]>(c, `/projects/${id}/actions`),
 

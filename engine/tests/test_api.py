@@ -143,6 +143,47 @@ def test_ws_logs_requires_token(tmp_path: Path) -> None:
         pass
 
 
+def test_git_endpoint_returns_null_for_non_repo(tmp_path: Path) -> None:
+    # path do projeto (config_dir) não é repo git → endpoint devolve null, não 404.
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+
+    resp = client.get("/projects/demo/git", headers={"Authorization": f"Bearer {token}"})
+
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+def test_git_pull_requires_confirmation(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # sem confirm → 409 antes mesmo de tentar rodar
+    assert client.post("/projects/demo/git/pull", headers=headers).status_code == 409
+
+
+def test_git_unknown_verb_is_400(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/projects/demo/git/clone", headers=headers)
+    assert resp.status_code == 400
+
+
+def test_git_fetch_on_non_repo_returns_refused(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", ["true"])
+    client, token = _client(tmp_path)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/projects/demo/git/fetch", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["refused"] is True
+    assert body["ok"] is False
+
+
 def test_ws_logs_streams_output(tmp_path: Path) -> None:
     _write_project(
         tmp_path,

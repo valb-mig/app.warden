@@ -18,6 +18,13 @@ class StartConfig(BaseModel):
 class NotifyConfig(BaseModel):
     on_error: bool = False
     on_finished: bool = False
+    on_git_behind: bool = False
+
+
+class GitWatchConfig(BaseModel):
+    watch: bool = False
+    interval: float = 300.0
+    remote: str = "origin"
 
 
 class LogSource(BaseModel):
@@ -43,6 +50,7 @@ class ProjectConfig(BaseModel):
     compose_file: str | None = None
     start: StartConfig | None = None
     notify: NotifyConfig = Field(default_factory=NotifyConfig)
+    git: GitWatchConfig = Field(default_factory=GitWatchConfig)
     log_sources: list[LogSource] = Field(default_factory=list)
     actions: list[ActionConfig] = Field(default_factory=list)
 
