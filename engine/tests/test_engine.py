@@ -17,7 +17,9 @@ def _wait_until(predicate, timeout: float = 3.0) -> None:
 
 
 def _write_project(config_dir: Path, project_id: str, cmd: list[str]) -> None:
-    (config_dir / f"{project_id}.toml").write_text(
+    projects_dir = config_dir / "projects"
+    projects_dir.mkdir(parents=True, exist_ok=True)
+    (projects_dir / f"{project_id}.toml").write_text(
         f'id = "{project_id}"\ntype = "raw"\npath = "{config_dir}"\n\n[start]\ncmd = {cmd!r}\n'
     )
 

@@ -21,9 +21,11 @@ cmd = ["true"]
 """
 
 
-def test_registry_loads_all_tomls_and_skips_global_config(tmp_path: Path) -> None:
-    (tmp_path / "a.toml").write_text(PROJECT_A)
-    (tmp_path / "b.toml").write_text(PROJECT_B)
+def test_registry_loads_all_tomls_ignoring_global_config(tmp_path: Path) -> None:
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    (projects_dir / "a.toml").write_text(PROJECT_A)
+    (projects_dir / "b.toml").write_text(PROJECT_B)
     (tmp_path / "config.toml").write_text("api_port = 9000\n")
 
     registry = Registry(tmp_path)
