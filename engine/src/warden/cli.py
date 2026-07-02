@@ -16,6 +16,18 @@ app = typer.Typer(help="Warden — CLI de debug do motor")
 DEFAULT_CONFIG_DIR = Path.home() / ".warden"
 DEFAULT_DB_PATH = DEFAULT_CONFIG_DIR / "warden.db"
 
+BANNER = [
+    "░█░█░█▀█░█▀▄░█▀▄░█▀▀░█▀█",
+    "░█▄█░█▀█░█▀▄░█░█░█▀▀░█░█",
+    "░▀░▀░▀░▀░▀░▀░▀▀░░▀▀▀░▀░▀",
+]
+
+
+def _print_banner() -> None:
+    for line in BANNER:
+        typer.secho(line, fg=typer.colors.BRIGHT_GREEN, bold=True)
+    typer.secho("─" * 24, fg=typer.colors.GREEN)
+
 
 def _engine() -> Engine:
     store = EventStore(DEFAULT_DB_PATH)
@@ -100,6 +112,12 @@ def serve(host: str = "127.0.0.1", port: int | None = None) -> None:
 
     global_config = load_global_config(DEFAULT_CONFIG_DIR / "config.toml")
     resolved_port = port if port is not None else global_config.api_port
+
+    _print_banner()
+    typer.secho(f"  api    http://{host}:{resolved_port}", fg=typer.colors.CYAN, bold=True)
+    typer.secho(f"  token  {DEFAULT_CONFIG_DIR / 'api_token'}", dim=True)
+    typer.echo()
+
     uvicorn.run(create_app(DEFAULT_CONFIG_DIR), host=host, port=resolved_port)
 
 

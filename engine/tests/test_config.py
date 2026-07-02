@@ -48,8 +48,6 @@ def test_load_docker_project(tmp_path: Path) -> None:
     assert project.display_name == "LeadMaster"
     assert project.type == "docker"
     assert project.notify.on_error is True
-    assert project.log_sources[0].service == "app"
-    assert project.actions[0].name == "migrate"
 
 
 def test_git_watch_defaults_off(tmp_path: Path) -> None:
@@ -75,6 +73,8 @@ def test_git_watch_configured(tmp_path: Path) -> None:
     assert project.git.watch is True
     assert project.git.interval == 60
     assert project.git.remote == "upstream"
+    assert project.log_sources[0].service == "app"
+    assert project.actions[0].name == "migrate"
 
 
 def test_load_python_project_defaults(tmp_path: Path) -> None:
