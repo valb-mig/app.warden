@@ -42,7 +42,36 @@ Detalhes completos de design e decisões: [CONTEXT.md](CONTEXT.md) e [TODO.md](T
 - **Front** (`web/`) — Next.js (App Router) + TypeScript, pnpm, Tailwind, shadcn/ui, lucide-react.
 - **Raiz** — [Justfile](justfile) orquestra os dois lados.
 
+## Instalação rápida
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/valb-mig/app.warden/main/install.sh | bash
+```
+
+Clona o repo em `~/warden`, instala `uv`/`pnpm` se faltar e sincroniza as deps dos dois lados. Depois é só `just boot` (mostra os comandos e o link de acesso).
+
 ## Como rodar
+
+**0.** `just boot` mostra os dois comandos (um pra cada terminal) e o link de acesso (local/LAN/tailscale) — não sobe nada sozinho, só imprime:
+
+```bash
+just boot
+```
+
+```
+Roda cada comando num terminal separado:
+
+  just cli serve --host 0.0.0.0
+  just web-dev
+
+Depois acessa em:
+  local:      http://localhost:3000
+  tailscale:  http://100.x.x.x:3000
+  rede local: http://192.168.x.x:3000
+  API token:  ~/.warden/api_token
+```
+
+Passo a passo (o que os comandos acima fazem):
 
 **1.** Config de projeto em `~/.warden/<id>.toml`:
 
@@ -63,7 +92,7 @@ capture_stdout = true
 just cli serve
 ```
 
-Gera `~/.warden/api_token` na primeira vez (permissão 600), sobe em `127.0.0.1:8420`.
+Gera `~/.warden/api_token` na primeira vez (permissão 600), sobe em `127.0.0.1:8420` por padrão. Pra acessar de outro dispositivo (celular/tailscale), usa `just cli serve --host 0.0.0.0` (o que `just boot` sugere).
 
 **3.** Sobe o front (outro terminal):
 

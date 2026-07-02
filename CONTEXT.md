@@ -31,7 +31,7 @@ Monitorar (status, portas, logs) + gerenciar (start/stop) + executar ações qua
                                                             /   |    \
                                                       Docker  Node  Python  PHP  Raw
                                                             |
-                                                   [ ~/.warden/*.toml ]
+                                                   [ ~/.warden/projects/*.toml ]
                                                    [ SQLite (histórico) ]
                                                    [ Event bus -> Notifier ]
 ```
@@ -49,7 +49,7 @@ Monitorar (status, portas, logs) + gerenciar (start/stop) + executar ações qua
 ## Passo-a-passo de estrutura (fluxo)
 
 **Boot do daemon:**
-1. Lê `~/.warden/` → carrega N configs de projeto (`<id>.toml`).
+1. Lê `~/.warden/projects/` → carrega N configs de projeto (`<id>.toml`).
 2. Pra cada projeto, instancia adapter certo pelo campo `type`.
 3. Reconcilia estado: docker → `docker ps`; owned → checa se PID salvo ainda vive (`psutil`).
 4. Sobe API + WebSocket.
@@ -74,7 +74,7 @@ Monitorar (status, portas, logs) + gerenciar (start/stop) + executar ações qua
 
 ## Dados importantes — modelo de config
 
-Um arquivo TOML por projeto em `~/.warden/<id>.toml`. Config **fora do repo** do projeto (não vaza pro GitHub). TOML em vez de JSON: permite comentário e é menos chato de editar à mão. Exemplo docker cobrindo todos os casos:
+Um arquivo TOML por projeto em `~/.warden/projects/<id>.toml`. Config **fora do repo** do projeto (não vaza pro GitHub). TOML em vez de JSON: permite comentário e é menos chato de editar à mão. `config.toml`/`api_token`/`warden.db` (arquivos únicos do daemon) ficam na raiz de `~/.warden/`, fora da pasta `projects/` — separa "N configs de projeto" de "estado do daemon". Exemplo docker cobrindo todos os casos:
 
 ```toml
 id = "leadmaster"
@@ -87,6 +87,12 @@ compose_file = "docker-compose.yml"
 [notify]
 on_error = true
 on_finished = false
+on_git_behind = false
+
+[git]
+watch = true
+interval = 300
+remote = "origin"
 
 [[log_sources]]
 name = "app"
@@ -138,6 +144,8 @@ on_error = true
 on_finished = true
 ```
 
+`[git]` é opt-in — sem essa seção o projeto não ganha fetch periódico nenhum, mas leitura de estado git (`GET /projects/{id}/git`) funciona sempre que `path` é um repo, watch ligado ou não.
+
 Config global do daemon em `~/.warden/config.toml` (porta da API, canal de notificação default, etc).
 
 **Estado em memória no engine** (não no config): PID atual, estado (running/stopped/errored), portas descobertas, últimas N linhas de log (ring buffer), timestamp de início (uptime).
@@ -158,9 +166,30 @@ Config global do daemon em `~/.warden/config.toml` (porta da API, canal de notif
 | **Logs docker** | `docker logs -f <container>` (ou SDK stream) |
 | **Logs nginx** | tail do arquivo declarado em `log_sources` |
 | **Erro PHP** | tail de `laravel.log`/`error_log` + regex `error_patterns` → casou → emite evento `error` → Notifier |
-| **Eventos** | `started / stopped / finished(exit=0) / error(exit≠0 ou pattern)` → grava SQLite |
+| **Drift git** | `[git] watch=true` → `GitWatcher` faz `fetch` periódico → `behind>0` na transição → emite `git_behind` → Notifier |
+| **Eventos** | `started / stopped / finished(exit=0) / error(exit≠0 ou pattern) / git_behind` → grava SQLite |
 
 **Chave da detecção de erro sem tocar no projeto:** Warden não instrumenta código nenhum. Só observa PID (morreu?) + exit code + tail de log com regex. Zero-fricção — o projeto não sabe que o Warden existe.
+
+---
+
+## Git — monitoramento e comandos
+
+Dimensão própria, **ortogonal ao adapter**: git é propriedade do `path` no disco, não do ciclo de vida do processo. Motor em `git.py`, sem estado, dois modos:
+
+- **Leitura** (`git_info`) — sempre disponível se `path` é repo. Branch, dirty+contagem de arquivos, ahead/behind vs upstream, último commit. `GET /projects/{id}/git` → `null` se não é repo.
+- **Comandos** (`git_command`) — allowlist embutida `fetch / sync / pull / push`, não shell livre (mesma filosofia de `actions`). `fetch` é read-only sem confirmação; `pull`/`push` exigem `?confirm=true`; `pull`/`sync` recusam se working tree sujo (evita merge-conflito no escuro via API); `sync` = fetch + fast-forward automático só se limpo e atrás — botão único pro caso comum no celular. Todo comando roda com `GIT_TERMINAL_PROMPT=0`, então falta de credencial falha rápido em vez de pendurar pedindo senha num tty que não existe.
+- **Watch periódico** (`GitWatcher`, opt-in via `[git] watch = true`) — mesma forma do `FileErrorWatcher`: thread própria, `fetch` a cada `interval` segundos, evento `git_behind` só na transição (0→N atrás do origin), não a cada poll. Sem watch ligado, o `ahead/behind` mostrado é o último estado conhecido (calculado on-demand, sem fetch de fundo).
+
+No front, card Git dedicado — colapsável, só aparece se o projeto é repo — fica separado do card de Actions do projeto (migrate/seed) pra não misturar as duas coisas. Badge "desatualizado" no status quando `running && behind>0`.
+
+---
+
+## Linguagens e filtro de log
+
+**Linguagens:** decorativo, não linguist. `languages.py` detecta manifesto primeiro (`pyproject.toml`, `package.json`+`tsconfig.json`, `composer.json`, `go.mod`, `Cargo.toml`, `Gemfile`, `pom.xml`), extensão como complemento até completar 3. `GET /projects/{id}/languages`. Front mostra ícones pequenos (`react-icons/si`) tanto na lista de projetos (início da linha) quanto no header do detalhe, sem badge, sem destaque.
+
+**Filtro de log:** reusa `error_patterns` já configurado em `log_sources` — `GET /projects/{id}/services` passou a devolver também os patterns (merge dedup). Front classifica linha por linha (regex JS), toggle "só erros" + busca por substring com highlight, tudo client-side. Sem patterns configurados no projeto, cai num fallback genérico.
 
 ---
 
@@ -175,7 +204,7 @@ Config global do daemon em `~/.warden/config.toml` (porta da API, canal de notif
 - `just` → Justfile.
 - `raw` → **fallback**: qualquer comando arbitrário. Cobre o resto.
 
-Não é mágica: cada projeto precisa de **um** arquivo de config pequeno, centralizado em `~/.warden/`, não no repo.
+Não é mágica: cada projeto precisa de **um** arquivo de config pequeno, centralizado em `~/.warden/projects/`, não no repo.
 
 ---
 
@@ -186,9 +215,9 @@ Parte sensível — comandos remotos numa máquina que roda tudo. Defesa em cama
 1. **Engine nunca exposto direto.** API faz bind só em `127.0.0.1`. Nada escuta em `0.0.0.0`. Sem port-forward no roteador.
 2. **Transporte: Tailscale.** VPN WireGuard, device-level auth. Celular entra na tailnet; só dispositivos autenticados na conta alcançam a API. Sem URL pública.
 3. **Auth na própria API** (mesmo dentro da tailnet, defesa em profundidade): token bearer ou sessão.
-4. **Comandos = allowlist, não shell livre.** Celular NÃO manda shell arbitrário. Só dispara `actions` pré-definidas no config (migrate, seed, restart). Rodar comando em container = ação nomeada declarada, não caixa de texto que executa qualquer coisa.
+4. **Comandos = allowlist, não shell livre.** Celular NÃO manda shell arbitrário. Só dispara `actions` pré-definidas no config (migrate, seed, restart) ou verbos git de uma allowlist embutida (`fetch/sync/pull/push` — nunca `git <qualquer coisa>`). Rodar comando em container = ação nomeada declarada, não caixa de texto que executa qualquer coisa.
 5. **Ações destrutivas com confirmação** (`migrate --force`, `down`, `shutdown`) + log de auditoria.
-6. **Segredos.** Configs em `~/.warden/` com permissão `600`. Token de API só no device (secure storage), não hardcoded, não commitado.
+6. **Segredos.** Configs em `~/.warden/projects/` com permissão `600`. Token de API só no device (secure storage), não hardcoded, não commitado.
 
 Casos concretos cobertos:
 
@@ -202,6 +231,9 @@ Casos concretos cobertos:
 | Logs nginx | log_source type=file |
 | Logs docker | `docker logs -f` via WS |
 | Print do python | capture stdout → ring buffer + stream |
+| Ver drift de git / sincronizar | card Git → `sync` (fetch+FF) ou `pull`/`push` com confirmação |
+| Saber se código rodando é o do topo do origin | badge "desatualizado" (`running && behind>0`) |
+| Achar linha de erro específica no log | busca por substring + toggle "só erros" no log viewer |
 
 ---
 
@@ -210,7 +242,7 @@ Casos concretos cobertos:
 1. **Motor local é dono do processo** — `subprocess.Popen` direto, pra ter PID/controle/logs.
 2. **Adapter por tipo de projeto** — detecção pela pasta.
 3. **Portas descobertas via `psutil`**, não fixas.
-4. **Config fora do repo** — `~/.warden/<id>.toml` (TOML), + `config.toml` global.
+4. **Config fora do repo** — `~/.warden/projects/<id>.toml` (TOML), + `config.toml` global na raiz.
 5. **MVP = eventos de lifecycle** (subiu/caiu/erro). Tráfego request-a-request fica pra depois.
 6. **Notificação plugável** — `Notifier` strategy (email, ntfy, Telegram...), toggle por projeto.
 7. **Fora do core**: diagrama de execução passo-a-passo de scripts.
@@ -218,10 +250,16 @@ Casos concretos cobertos:
 9. **Sem shell livre remoto** — só actions em allowlist.
 10. **Persistência: SQLite** pra histórico de eventos; estado vivo em memória.
 11. **Nome: Warden.**
+12. **Git é dimensão própria, ortogonal ao adapter** — leitura sempre disponível, comandos via allowlist embutida (`fetch/sync/pull/push`), `GIT_TERMINAL_PROMPT=0` pra nunca pendurar pedindo credencial.
+13. **Watch de drift git é opt-in por projeto** (`[git] watch=true`) — notifica só na transição pra "atrás do origin", não a cada poll.
+14. **Linguagens do projeto: decorativo, não linguist** — manifesto + extensão, teto de 3 ícones.
+15. **Filtro de log reusa `error_patterns` já existente** — sem taxonomia nova, sem endpoint dedicado além de estender `/services`.
+16. **Multi-máquina é conceito só do front.** Engine continua single-machine; front guarda N conexões nomeadas (localStorage) e troca a ativa via switcher no header, sem endpoint novo no engine.
 
 ## Em aberto
 
 - Detecção de erro PHP: falta detalhar edge cases (rotação de log, stacktrace multi-linha).
+- Engine sem `--reload`: mudança de código em `engine/` só aparece depois de reiniciar `just cli serve` — mesma classe de limitação do hot-reload de TOML, mas pra código Python.
 
 ## Rascunho de MVP
 
@@ -232,7 +270,7 @@ Casos concretos cobertos:
 
 ## Como rodar (dev, fases 1-6 concluídas)
 
-**1. Config de projeto** — `~/.warden/<id>.toml`. Exemplo mínimo:
+**1. Config de projeto** — `~/.warden/projects/<id>.toml`. Exemplo mínimo:
 
 ```toml
 id = "meu-projeto"
@@ -245,13 +283,13 @@ cmd = ["python3", "seu_script.py"]
 capture_stdout = true
 ```
 
-Tipos disponíveis: `raw`, `python`, `docker` (`docker` usa `compose_file = "docker-compose.yml"` em vez de `[start]`). `node`/`php`/`just` só na fase 8.
+Tipos disponíveis: `raw`, `python`, `node`, `php`, `just`, `docker` (`docker` usa `compose_file = "docker-compose.yml"` em vez de `[start]`).
 
 **2. Sobe a API** (motor + FastAPI):
 ```bash
 just cli serve
 ```
-Lê `~/.warden/*.toml`, gera `~/.warden/api_token` na primeira vez (permissão 600), sobe em `127.0.0.1:8420`.
+Lê `~/.warden/projects/*.toml`, gera `~/.warden/api_token` na primeira vez (permissão 600), sobe em `127.0.0.1:8420`.
 
 **3. Pega o token:**
 ```bash
