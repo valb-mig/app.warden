@@ -12,6 +12,7 @@ import { GitCard } from "@/components/git-card";
 import { HistoryTable } from "@/components/history-table";
 import { LanguageIcons } from "@/components/language-icons";
 import { LogViewer } from "@/components/log-viewer";
+import { VitalsCard, type VitalSample } from "@/components/vitals-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import { api, ApiError, type GitInfo, type ProjectStatus } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 
 const STATUS_POLL_MS = 3000;
+const MAX_VITAL_SAMPLES = 100;
 
 function formatUptime(seconds: number | null): string {
   if (seconds == null) return "—";
@@ -51,6 +53,7 @@ function ProjectDetailContent({
   const [status, setStatus] = useState<ProjectStatus | null>(null);
   const [git, setGit] = useState<GitInfo | null>(null);
   const [pending, setPending] = useState(false);
+  const [vitalSamples, setVitalSamples] = useState<VitalSample[]>([]);
 
   const refreshGit = useCallback(() => {
     api
@@ -62,7 +65,15 @@ function ProjectDetailContent({
 
   const refreshStatus = useCallback(async () => {
     try {
-      setStatus(await api.status(config, projectId));
+      const s = await api.status(config, projectId);
+      setStatus(s);
+      const { cpu_percent: cpu, memory_mb: mem } = s;
+      if (s.running && cpu != null && mem != null) {
+        setVitalSamples((prev) => {
+          const next = [...prev, { t: Date.now(), cpu, mem }];
+          return next.length > MAX_VITAL_SAMPLES ? next.slice(-MAX_VITAL_SAMPLES) : next;
+        });
+      }
     } catch {
       // erro silencioso no polling — a próxima tentativa cobre uma falha isolada
     }
@@ -158,6 +169,7 @@ function ProjectDetailContent({
         </CardContent>
       </Card>
 
+      <VitalsCard samples={vitalSamples} />
       <GitCard config={config} projectId={projectId} git={git} onRefresh={refreshGit} />
       <ActionsCard config={config} projectId={projectId} />
       <LogViewer config={config} projectId={projectId} />

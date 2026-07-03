@@ -5,12 +5,14 @@ import subprocess
 
 from warden.adapters.base import Adapter, ProcessStatus
 from warden.config import ProjectConfig
+from warden.vitals import VitalsSampler
 
 
 class DockerAdapter(Adapter):
     def __init__(self, config: ProjectConfig):
         self.config = config
         self._compose_file = config.compose_file or "docker-compose.yml"
+        self._vitals = VitalsSampler()
 
     def _compose(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
@@ -41,7 +43,14 @@ class DockerAdapter(Adapter):
                 if publisher.get("PublishedPort")
             }
         )
-        return ProcessStatus(running=True, pid=pid, ports=ports)
+        cpu_percent, memory_mb = None, None
+        if pid:
+            vitals = self._vitals.sample(pid)
+            if vitals:
+                cpu_percent, memory_mb = vitals
+        return ProcessStatus(
+            running=True, pid=pid, ports=ports, cpu_percent=cpu_percent, memory_mb=memory_mb
+        )
 
     def _container_pid(self, container_id: str) -> int | None:
         result = subprocess.run(

@@ -12,6 +12,7 @@ import psutil
 from warden.adapters.base import Adapter, ProcessStatus
 from warden.config import ProjectConfig
 from warden.logbuffer import RingBuffer
+from warden.vitals import VitalsSampler
 
 
 class ProcessAdapter(Adapter):
@@ -25,6 +26,7 @@ class ProcessAdapter(Adapter):
         self._started_at: float | None = None
         self._stop_requested = False
         self._on_exit: Callable[[int], None] | None = None
+        self._vitals = VitalsSampler()
 
     def set_on_exit(self, callback: Callable[[int], None]) -> None:
         self._on_exit = callback
@@ -107,7 +109,16 @@ class ProcessAdapter(Adapter):
             }
         )
         uptime = time.time() - self._started_at if self._started_at else None
-        return ProcessStatus(running=True, pid=proc.pid, ports=ports, uptime_seconds=uptime)
+        vitals = self._vitals.sample(proc.pid)
+        cpu_percent, memory_mb = vitals if vitals else (None, None)
+        return ProcessStatus(
+            running=True,
+            pid=proc.pid,
+            ports=ports,
+            uptime_seconds=uptime,
+            cpu_percent=cpu_percent,
+            memory_mb=memory_mb,
+        )
 
     def logs(self, tail: int = 100, service: str | None = None) -> list[str]:
         return self._logs.tail(tail)

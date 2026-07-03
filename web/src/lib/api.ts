@@ -12,6 +12,8 @@ export interface ProjectStatus {
   pid: number | null;
   ports: number[];
   uptime_seconds: number | null;
+  cpu_percent: number | null;
+  memory_mb: number | null;
 }
 
 export interface HistoryEvent {

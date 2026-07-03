@@ -15,6 +15,8 @@ class StatusOut(BaseModel):
     pid: int | None = None
     ports: list[int] = []
     uptime_seconds: float | None = None
+    cpu_percent: float | None = None
+    memory_mb: float | None = None
 
 
 class LogsOut(BaseModel):

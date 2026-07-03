@@ -56,7 +56,14 @@ def stop_project(project_id: str, engine: Engine = Depends(get_engine)) -> dict:
 def project_status(project_id: str, engine: Engine = Depends(get_engine)) -> StatusOut:
     _project_or_404(engine, project_id)
     s = engine.status(project_id)
-    return StatusOut(running=s.running, pid=s.pid, ports=s.ports, uptime_seconds=s.uptime_seconds)
+    return StatusOut(
+        running=s.running,
+        pid=s.pid,
+        ports=s.ports,
+        uptime_seconds=s.uptime_seconds,
+        cpu_percent=s.cpu_percent,
+        memory_mb=s.memory_mb,
+    )
 
 
 @router.get("/{project_id}/logs", response_model=LogsOut)

@@ -11,6 +11,8 @@ class ProcessStatus:
     pid: int | None = None
     ports: list[int] = field(default_factory=list)
     uptime_seconds: float | None = None
+    cpu_percent: float | None = None
+    memory_mb: float | None = None
 
 
 class Adapter(ABC):
