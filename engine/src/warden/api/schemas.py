@@ -81,3 +81,13 @@ class ActionAuditOut(BaseModel):
     confirmed: bool
     exit_code: int
     created_at: str
+
+
+class SystemVitalsOut(BaseModel):
+    cpu_percent: float
+    memory_percent: float
+    memory_used_mb: float
+    memory_total_mb: float
+    disk_percent: float
+    disk_used_gb: float
+    disk_total_gb: float

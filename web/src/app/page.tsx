@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import { ConnectCard } from "@/components/connect-card";
 import { LanguageIcons } from "@/components/language-icons";
+import { SystemVitalsCard } from "@/components/system-vitals-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -278,6 +279,8 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
           </Badge>
         )}
       </div>
+
+      <SystemVitalsCard config={config} />
 
       {visibleAttentionItems.length > 0 && (
         <Alert variant="destructive">

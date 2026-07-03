@@ -23,6 +23,8 @@ from warden.languages import detect_languages
 from warden.notifier import Notifier, NullNotifier
 from warden.registry import Registry
 from warden.store import EventStore
+from warden.system_vitals import SystemVitals, system_vitals
+from warden.system_vitals import prime as prime_system_vitals
 
 
 @dataclass
@@ -69,6 +71,7 @@ class Engine:
         self.registry.load()
         self._start_file_watchers()
         self._start_git_watchers()
+        prime_system_vitals()
 
     def shutdown(self) -> None:
         for watcher in self._file_watchers:
@@ -215,3 +218,6 @@ class Engine:
         if self.store is None:
             return []
         return self.store.action_audit(project_id, limit)
+
+    def system_vitals(self) -> SystemVitals:
+        return system_vitals()

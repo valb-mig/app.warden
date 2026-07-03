@@ -133,6 +133,16 @@ export interface BrowseResult {
   entries: BrowseEntry[];
 }
 
+export interface SystemVitals {
+  cpu_percent: number;
+  memory_percent: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
+  disk_percent: number;
+  disk_used_gb: number;
+  disk_total_gb: number;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -221,6 +231,8 @@ export const api = {
 
   browse: (c: ApiConfig, path?: string) =>
     request<BrowseResult>(c, `/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`),
+
+  systemVitals: (c: ApiConfig) => request<SystemVitals>(c, "/system/vitals"),
 
   previewConfig: (c: ApiConfig, path: string, id?: string) =>
     request<ConfigPreview>(c, "/discover/preview", {
