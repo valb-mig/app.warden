@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CommandField } from "@/components/command-field";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ export function ProjectConfigModal({
   const [projectConfig, setProjectConfig] = useState<ProjectConfigPayload | null>(null);
   const [toml, setToml] = useState<string | null>(null);
   const [startCmd, setStartCmd] = useState("");
+  const [actionCmds, setActionCmds] = useState<string[]>([]);
   const [removedLogSources, setRemovedLogSources] = useState<Set<number>>(new Set());
   const [removedActions, setRemovedActions] = useState<Set<number>>(new Set());
 
@@ -80,6 +82,7 @@ export function ProjectConfigModal({
         if (cancelled) return;
         setProjectConfig(cfg);
         setStartCmd(cfg.start ? cfg.start.cmd.join(" ") : "");
+        setActionCmds(cfg.actions.map((action) => action.cmd.join(" ")));
       } catch (err) {
         if (cancelled) return;
         toast.error(err instanceof ApiError ? err.message : "falha ao carregar config");
@@ -106,7 +109,9 @@ export function ProjectConfigModal({
           ? { ...projectConfig.start, cmd: splitCommand(startCmd) }
           : null,
         log_sources: projectConfig.log_sources.filter((_, i) => !removedLogSources.has(i)),
-        actions: projectConfig.actions.filter((_, i) => !removedActions.has(i)),
+        actions: projectConfig.actions
+          .map((action, i) => ({ ...action, cmd: splitCommand(actionCmds[i] ?? "") }))
+          .filter((_, i) => !removedActions.has(i)),
       };
       await api.applyConfig(apiConfig, payload);
       toast.success(`${payload.id}: config salva`);
@@ -173,11 +178,7 @@ export function ProjectConfigModal({
             {projectConfig.start && (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="cfg-start">comando de start</Label>
-                <Input
-                  id="cfg-start"
-                  value={startCmd}
-                  onChange={(e) => setStartCmd(e.target.value)}
-                />
+                <CommandField id="cfg-start" value={startCmd} onChange={setStartCmd} />
               </div>
             )}
 
@@ -206,20 +207,26 @@ export function ProjectConfigModal({
             {projectConfig.actions.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <Label>actions</Label>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-2">
                   {projectConfig.actions.map((action, i) => (
-                    <Button
-                      key={`${action.name}-${i}`}
-                      type="button"
-                      size="sm"
-                      variant={removedActions.has(i) ? "outline" : "default"}
-                      className="w-full justify-start overflow-hidden font-mono"
-                      onClick={() => setRemovedActions((s) => toggle(s, i))}
-                    >
-                      <span className="truncate">
-                        {action.name}: {action.cmd.join(" ")}
-                      </span>
-                    </Button>
+                    <div key={`${action.name}-${i}`} className="flex flex-col gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={removedActions.has(i) ? "outline" : "default"}
+                        className="w-full justify-start overflow-hidden font-mono"
+                        onClick={() => setRemovedActions((s) => toggle(s, i))}
+                      >
+                        <span className="truncate">{action.name}</span>
+                      </Button>
+                      <CommandField
+                        value={actionCmds[i] ?? ""}
+                        disabled={removedActions.has(i)}
+                        onChange={(v) =>
+                          setActionCmds((cmds) => cmds.map((c, idx) => (idx === i ? v : c)))
+                        }
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
