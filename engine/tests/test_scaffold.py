@@ -80,6 +80,27 @@ def test_detect_python_with_uv(tmp_path: Path) -> None:
     assert config.start.cmd == ["uv", "run", "python", "main.py"]
 
 
+def test_detect_python_with_venv(tmp_path: Path) -> None:
+    (tmp_path / "run.py").write_text("")
+    venv_bin = tmp_path / "venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "python").write_text("")
+
+    config = build_config(tmp_path)
+    assert config.start.cmd == [str(venv_bin / "python"), "run.py"]
+
+
+def test_detect_python_venv_ignored_when_uv_lock_present(tmp_path: Path) -> None:
+    (tmp_path / "main.py").write_text("")
+    (tmp_path / "uv.lock").write_text("")
+    venv_bin = tmp_path / "venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    (venv_bin / "python").write_text("")
+
+    config = build_config(tmp_path)
+    assert config.start.cmd == ["uv", "run", "python", "main.py"]
+
+
 def test_detect_just(tmp_path: Path) -> None:
     (tmp_path / "Justfile").write_text("default: dev\n\ndev:\n    echo hi\n\ntest:\n    pytest\n")
 

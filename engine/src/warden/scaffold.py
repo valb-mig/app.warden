@@ -123,9 +123,7 @@ def _build_node(path: Path) -> dict:
     start_script = next((s for s in ("dev", "start") if s in scripts), None)
     kwargs: dict = {}
     if start_script:
-        kwargs["start"] = StartConfig(
-            cmd=_node_run_cmd(runner, start_script), capture_stdout=True
-        )
+        kwargs["start"] = StartConfig(cmd=_node_run_cmd(runner, start_script), capture_stdout=True)
         kwargs["log_sources"] = [LogSource(name="stdout", type="stdout")]
 
     actions = [
@@ -181,14 +179,31 @@ def _detect_python_entry(path: Path) -> tuple[str, list[str]] | None:
     return None
 
 
+_VENV_CANDIDATES = ("venv", ".venv", "env")
+
+
+def _detect_venv_python(path: Path) -> str | None:
+    for candidate in _VENV_CANDIDATES:
+        venv_python = path / candidate / "bin" / "python"
+        if venv_python.exists():
+            return str(venv_python)
+    return None
+
+
 def _build_python(path: Path) -> dict:
     entry = _detect_python_entry(path)
     if entry is None:
         return {}
     filename, extra_args = entry
-    prefix = ["uv", "run"] if (path / "uv.lock").exists() else []
+
+    if (path / "uv.lock").exists():
+        cmd = ["uv", "run", "python", filename, *extra_args]
+    else:
+        interpreter = _detect_venv_python(path) or "python"
+        cmd = [interpreter, filename, *extra_args]
+
     return {
-        "start": StartConfig(cmd=[*prefix, "python", filename, *extra_args], capture_stdout=True),
+        "start": StartConfig(cmd=cmd, capture_stdout=True),
         "log_sources": [LogSource(name="stdout", type="stdout")],
     }
 

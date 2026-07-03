@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from warden.config import GlobalConfig, load_global_config, load_project_config
+from warden.config import GlobalConfig, load_global_config, load_project_config, save_global_config
 
 DOCKER_TOML = """
 id = "leadmaster"
@@ -65,7 +65,7 @@ def test_git_watch_defaults_off(tmp_path: Path) -> None:
 def test_git_watch_configured(tmp_path: Path) -> None:
     toml_file = tmp_path / "leadmaster.toml"
     toml_file.write_text(
-        DOCKER_TOML + "\n[git]\nwatch = true\ninterval = 60\nremote = \"upstream\"\n"
+        DOCKER_TOML + '\n[git]\nwatch = true\ninterval = 60\nremote = "upstream"\n'
     )
 
     project = load_project_config(toml_file)
@@ -112,3 +112,14 @@ def test_load_global_config_reads_existing_file(tmp_path: Path) -> None:
     assert config.api_port == 9000
     assert config.notify_channel == "ntfy"
     assert config.ntfy_topic == "alerts"
+
+
+def test_save_global_config_persists_scan_paths(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config = load_global_config(config_path)
+    config.scan_paths = ["/home/valb/Projects", "/home/valb/Work"]
+
+    save_global_config(config_path, config)
+    reloaded = load_global_config(config_path)
+
+    assert reloaded.scan_paths == ["/home/valb/Projects", "/home/valb/Work"]

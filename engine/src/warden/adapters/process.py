@@ -1,5 +1,7 @@
 """Adapter base pra tipos owned (não-docker): Popen direto, motor dono do PID."""
 
+import os
+import pty
 import subprocess
 import threading
 import time
@@ -18,6 +20,7 @@ class ProcessAdapter(Adapter):
             raise ValueError(f"projeto {config.id!r} sem [start] configurado")
         self.config = config
         self._process: subprocess.Popen | None = None
+        self._master_fd: int | None = None
         self._logs = RingBuffer()
         self._started_at: float | None = None
         self._stop_requested = False
@@ -32,23 +35,47 @@ class ProcessAdapter(Adapter):
         start = self.config.start
         capture = start.capture_stdout
         self._stop_requested = False
+
+        slave_fd: int | None = None
+        if capture:
+            # PTY em vez de PIPE: o filho enxerga um terminal e a maioria dos
+            # runtimes (python, node, php...) volta a fazer flush por linha —
+            # com PIPE puro eles bufferizam em bloco e os logs só chegam no exit.
+            self._master_fd, slave_fd = pty.openpty()
+
         self._process = subprocess.Popen(
             start.cmd,
             cwd=start.cwd or self.config.path,
-            stdout=subprocess.PIPE if capture else None,
+            stdout=slave_fd if capture else None,
             stderr=subprocess.STDOUT if capture else None,
-            text=True,
         )
+        if capture:
+            assert slave_fd is not None
+            os.close(slave_fd)
         self._started_at = time.time()
         if capture:
             threading.Thread(target=self._pump_stdout, daemon=True).start()
         threading.Thread(target=self._watch_exit, args=(self._process,), daemon=True).start()
 
     def _pump_stdout(self) -> None:
-        assert self._process is not None
-        assert self._process.stdout is not None
-        for line in self._process.stdout:
-            self._logs.append(line.rstrip("\n"))
+        assert self._master_fd is not None
+        buffer = b""
+        while True:
+            try:
+                chunk = os.read(self._master_fd, 4096)
+            except OSError:
+                # slave fechado (processo saiu) — pty devolve EIO nesse caso, não EOF
+                break
+            if not chunk:
+                break
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                self._logs.append(line.decode(errors="replace").rstrip("\r"))
+        if buffer:
+            self._logs.append(buffer.decode(errors="replace").rstrip("\r"))
+        os.close(self._master_fd)
+        self._master_fd = None
 
     def _watch_exit(self, process: subprocess.Popen) -> None:
         returncode = process.wait()

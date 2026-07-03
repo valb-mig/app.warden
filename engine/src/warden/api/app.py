@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from warden.api.deps import verify_token
+from warden.api.discovery_routes import router as discovery_router
 from warden.api.routes import router
 from warden.api.ws import router as ws_router
 from warden.auth import load_or_create_token
@@ -35,6 +36,7 @@ def create_app(config_dir: Path) -> FastAPI:
     )
 
     app.include_router(router, dependencies=[Depends(verify_token)])
+    app.include_router(discovery_router, dependencies=[Depends(verify_token)])
     app.include_router(ws_router)
 
     return app

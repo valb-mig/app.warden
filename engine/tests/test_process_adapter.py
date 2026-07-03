@@ -24,8 +24,10 @@ def _project(tmp_path, cmd: list[str]) -> ProjectConfig:
 
 
 def test_start_captures_stdout_and_reports_running(tmp_path) -> None:
-    script = "import sys, time; print('hello'); sys.stdout.flush(); time.sleep(2)"
-    adapter = RawAdapter(_project(tmp_path, [sys.executable, "-u", "-c", script]))
+    # sem -u nem flush manual: o adapter usa PTY, então o próprio python já
+    # faz flush por linha por enxergar um terminal — precisa chegar sem isso.
+    script = "import time; print('hello'); time.sleep(2)"
+    adapter = RawAdapter(_project(tmp_path, [sys.executable, "-c", script]))
 
     adapter.start()
     try:

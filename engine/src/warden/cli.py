@@ -1,10 +1,11 @@
 """CLI de debug do motor — usa antes de API/front existirem (fase 2)."""
 
+import shlex
 from pathlib import Path
 
 import typer
 
-from warden.config import load_global_config
+from warden.config import ProjectConfig, load_global_config
 from warden.engine import Engine
 from warden.notifier import create_notifier
 from warden.registry import PROJECTS_DIRNAME
@@ -74,34 +75,93 @@ def list_projects() -> None:
         typer.echo(f"{project.id}\t{project.type}\t{project.display_name}")
 
 
+def _label(text: str) -> str:
+    return typer.style(text, fg=typer.colors.YELLOW)
+
+
+def _highlight(text: str) -> str:
+    return typer.style(text, fg=typer.colors.CYAN, bold=True)
+
+
+def _prompt_group(config: ProjectConfig) -> None:
+    group = typer.prompt(_label("Grupo (opcional)"), default=config.group or "", show_default=False)
+    config.group = group.strip() or None
+
+
+def _prompt_start(config: ProjectConfig) -> None:
+    if config.start is None:
+        return
+    current = shlex.join(config.start.cmd)
+    prompt = f"{_label('Start detectado:')} {_highlight(current)}\n{_label('Manter?')}"
+    if typer.confirm(prompt, default=True):
+        return
+    edited = typer.prompt(_label("Novo comando de start"), default=current)
+    config.start.cmd = shlex.split(edited)
+
+
+def _prompt_log_sources(config: ProjectConfig) -> None:
+    if not config.log_sources:
+        return
+    kept = []
+    for source in config.log_sources:
+        label = _highlight(f"{source.name} ({source.type})")
+        if typer.confirm(_label(f"Manter log source '{label}'?"), default=True):
+            kept.append(source)
+    config.log_sources = kept
+
+
+def _prompt_actions(config: ProjectConfig) -> None:
+    if not config.actions:
+        return
+    kept = []
+    for action in config.actions:
+        label = _highlight(f"{action.name}: {shlex.join(action.cmd)}")
+        if typer.confirm(_label(f"Manter action '{label}'?"), default=True):
+            kept.append(action)
+    config.actions = kept
+
+
 @app.command()
 def init(
     path: str,
     id: str | None = typer.Option(None, "--id", help="id do projeto (default: slug da pasta)"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="pula confirmação e grava direto"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="pula prompts e confirmação, grava direto"),
 ) -> None:
     """Detecta tipo de projeto na pasta e gera ~/.warden/<id>.toml."""
     try:
         config = build_config(path, project_id=id)
     except FileNotFoundError as exc:
-        typer.echo(str(exc), err=True)
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(1) from exc
 
+    typer.secho("tipo detectado: ", fg=typer.colors.GREEN, bold=True, nl=False)
+    typer.secho(config.type, fg=typer.colors.CYAN, bold=True)
+
+    if not yes:
+        _prompt_group(config)
+        _prompt_start(config)
+        _prompt_log_sources(config)
+        _prompt_actions(config)
+
     toml_text = render_toml(config)
-    typer.echo(f"tipo detectado: {config.type}")
-    typer.echo(toml_text)
+    typer.secho("─" * 40, fg=typer.colors.BRIGHT_BLACK)
+    typer.secho(toml_text, fg=typer.colors.WHITE)
+    typer.secho("─" * 40, fg=typer.colors.BRIGHT_BLACK)
 
     target = DEFAULT_CONFIG_DIR / PROJECTS_DIRNAME / f"{config.id}.toml"
     if target.exists():
-        typer.echo(f"aviso: {target} já existe, será sobrescrito")
+        typer.secho(
+            f"aviso: {target} já existe, será sobrescrito", fg=typer.colors.YELLOW, bold=True
+        )
 
-    if not yes and not typer.confirm(f"Gravar em {target}?"):
-        typer.echo("cancelado")
+    if not yes and not typer.confirm(_label(f"Gravar em {_highlight(str(target))}?")):
+        typer.secho("cancelado", fg=typer.colors.RED)
         raise typer.Exit(0)
 
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(toml_text)
-    typer.echo(f"gravado: {target}")
+    typer.secho("gravado: ", fg=typer.colors.GREEN, bold=True, nl=False)
+    typer.secho(str(target), fg=typer.colors.CYAN, bold=True)
 
 
 @app.command()
