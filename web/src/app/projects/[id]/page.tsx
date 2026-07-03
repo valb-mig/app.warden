@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Play, Square } from "lucide-react";
+import { ArrowLeft, Loader2, Play, Settings2, Square } from "lucide-react";
 import { toast } from "sonner";
 
 import { ActionsCard } from "@/components/actions-card";
@@ -12,6 +12,7 @@ import { GitCard } from "@/components/git-card";
 import { HistoryTable } from "@/components/history-table";
 import { LanguageIcons } from "@/components/language-icons";
 import { LogViewer } from "@/components/log-viewer";
+import { ProjectConfigModal } from "@/components/project-config-modal";
 import { VitalsCard, type VitalSample } from "@/components/vitals-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,13 @@ function ProjectDetailContent({
               ) : (
                 <Skeleton className="h-5 w-16" />
               )}
+              <ProjectConfigModal
+                apiConfig={config}
+                target={{ mode: "edit", projectId }}
+                trigger={<Button variant="ghost" size="icon-sm" />}
+              >
+                <Settings2 className="size-4" />
+              </ProjectConfigModal>
             </span>
           </CardTitle>
         </CardHeader>
