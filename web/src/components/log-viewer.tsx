@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Search, TriangleAlert, X } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { Eraser, Loader2, Maximize2, Minimize2, Search, TriangleAlert, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +46,17 @@ export function LogViewer({ config, projectId }: { config: ApiConfig; projectId:
   const [selected, setSelected] = useState(ALL_SERVICES);
   const [query, setQuery] = useState("");
   const [onlyErrors, setOnlyErrors] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const streamRef = useRef<LogStreamHandle>(null);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fullscreen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,13 +77,28 @@ export function LogViewer({ config, projectId }: { config: ApiConfig; projectId:
   }, [config.baseUrl, config.token, projectId]);
 
   return (
-    <Card className="flex flex-1 flex-col">
+    <Card
+      className={
+        fullscreen
+          ? "fixed inset-0 z-50 flex flex-col rounded-none"
+          : "flex flex-1 flex-col"
+      }
+    >
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="flex-1">Logs ao vivo</span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            onClick={() => setFullscreen((v) => !v)}
+            title={fullscreen ? "sair da tela cheia (esc)" : "tela cheia"}
+          >
+            {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-3">
+      <CardContent className="flex flex-1 flex-col gap-3 overflow-hidden">
         <div className="flex flex-wrap items-center gap-2">
           {services.length > 0 && (
             <Tabs value={selected} onValueChange={setSelected}>
@@ -114,37 +140,43 @@ export function LogViewer({ config, projectId }: { config: ApiConfig; projectId:
             <TriangleAlert className="size-3.5" />
             só erros
           </Button>
+
+          <Button size="sm" variant="outline" onClick={() => streamRef.current?.clear()}>
+            <Eraser className="size-3.5" />
+            limpar
+          </Button>
         </div>
 
         <LogStream
           key={selected}
+          ref={streamRef}
           config={config}
           projectId={projectId}
           service={selected === ALL_SERVICES ? undefined : selected}
           query={query}
           onlyErrors={onlyErrors}
           errorPatterns={errorPatterns}
+          fullscreen={fullscreen}
         />
       </CardContent>
     </Card>
   );
 }
 
-function LogStream({
-  config,
-  projectId,
-  service,
-  query,
-  onlyErrors,
-  errorPatterns,
-}: {
-  config: ApiConfig;
-  projectId: string;
-  service?: string;
-  query: string;
-  onlyErrors: boolean;
-  errorPatterns: RegExp[];
-}) {
+type LogStreamHandle = { clear: () => void };
+
+const LogStream = forwardRef<
+  LogStreamHandle,
+  {
+    config: ApiConfig;
+    projectId: string;
+    service?: string;
+    query: string;
+    onlyErrors: boolean;
+    errorPatterns: RegExp[];
+    fullscreen: boolean;
+  }
+>(function LogStream({ config, projectId, service, query, onlyErrors, errorPatterns, fullscreen }, ref) {
   const [lines, setLines] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -162,6 +194,11 @@ function LogStream({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.baseUrl, config.token, projectId, service]);
+
+  useImperativeHandle(ref, () => ({
+    // só limpa o que tá exibido no front — o ring buffer do backend não é afetado.
+    clear: () => setLines([]),
+  }));
 
   const isError = useMemo(
     () => (line: string) => errorPatterns.some((p) => p.test(line)),
@@ -184,31 +221,49 @@ function LogStream({
   }, [filtered, query]);
 
   return (
-    <ScrollArea className="h-80 rounded-md border bg-muted/30 p-3">
-      {!connected ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" />
-          conectando...
-        </p>
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {lines.length === 0 ? "sem saída ainda" : "nenhuma linha bate com o filtro"}
-        </p>
-      ) : (
-        <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
-          {filtered.map((line, i) => (
-            <LogLine key={i} line={line} query={query} isError={isError(line)} />
-          ))}
-        </pre>
-      )}
-      <div ref={bottomRef} />
-    </ScrollArea>
+    <div
+      className={`flex flex-col overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 ${
+        fullscreen ? "min-h-0 flex-1" : ""
+      }`}
+    >
+      <div className="flex items-center gap-1.5 border-b border-zinc-800 bg-zinc-900/60 px-3 py-1.5">
+        <span className="size-2.5 rounded-full bg-red-500/70" />
+        <span className="size-2.5 rounded-full bg-yellow-500/70" />
+        <span className="size-2.5 rounded-full bg-green-500/70" />
+        <span className="ml-2 font-mono text-xs text-zinc-500">{service ?? "todos os serviços"}</span>
+        <span
+          className={`ml-auto size-1.5 rounded-full ${connected ? "bg-green-500" : "bg-zinc-600"}`}
+        />
+      </div>
+      <ScrollArea className={fullscreen ? "min-h-0 flex-1 p-3" : "h-80 p-3"}>
+        {!connected ? (
+          <p className="flex items-center gap-2 font-mono text-sm text-zinc-500">
+            <Loader2 className="size-3.5 animate-spin" />
+            conectando...
+          </p>
+        ) : filtered.length === 0 ? (
+          <p className="font-mono text-sm text-zinc-500">
+            {lines.length === 0 ? "sem saída ainda" : "nenhuma linha bate com o filtro"}
+          </p>
+        ) : (
+          <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-zinc-300">
+            {filtered.map((line, i) => (
+              <LogLine key={i} line={line} query={query} isError={isError(line)} />
+            ))}
+            {!query && (
+              <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-zinc-300 align-text-bottom" />
+            )}
+          </pre>
+        )}
+        <div ref={bottomRef} />
+      </ScrollArea>
+    </div>
   );
-}
+});
 
 function LogLine({ line, query, isError }: { line: string; query: string; isError: boolean }) {
   const content = query ? highlight(line, query) : line;
-  return <div className={isError ? "text-destructive" : undefined}>{content}</div>;
+  return <div className={isError ? "text-red-400" : undefined}>{content}</div>;
 }
 
 function highlight(line: string, query: string): React.ReactNode {

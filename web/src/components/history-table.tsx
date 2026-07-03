@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History } from "lucide-react";
+import { History, Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,8 +22,22 @@ const EVENT_VARIANT: Record<string, "default" | "secondary" | "outline" | "destr
   error: "destructive",
 };
 
+function formatWhen(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
 export function HistoryTable({ config, projectId }: { config: ApiConfig; projectId: string }) {
   const [events, setEvents] = useState<HistoryEvent[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -33,13 +47,28 @@ export function HistoryTable({ config, projectId }: { config: ApiConfig; project
         if (!cancelled) setEvents(res);
       })
       .catch(() => {
-        if (!cancelled) setEvents([]);
+        if (!cancelled) {
+          setEvents([]);
+          setFailed(true);
+        }
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.baseUrl, config.token, projectId]);
+
+  const toggleExpanded = (i: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) {
+        next.delete(i);
+      } else {
+        next.add(i);
+      }
+      return next;
+    });
+  };
 
   return (
     <Card>
@@ -50,27 +79,52 @@ export function HistoryTable({ config, projectId }: { config: ApiConfig; project
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!events || events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">sem eventos ainda</p>
+        {events === null ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" />
+            carregando...
+          </p>
+        ) : events.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {failed ? "falha ao carregar histórico" : "sem eventos ainda"}
+          </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Quando</TableHead>
-                <TableHead>Evento</TableHead>
+                <TableHead className="w-36">Quando</TableHead>
+                <TableHead className="w-28">Evento</TableHead>
                 <TableHead>Mensagem</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {events.map((event, i) => (
-                <TableRow key={`${event.created_at}-${i}`}>
-                  <TableCell className="text-muted-foreground">{event.created_at}</TableCell>
-                  <TableCell>
-                    <Badge variant={EVENT_VARIANT[event.type] ?? "outline"}>{event.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{event.message || "—"}</TableCell>
-                </TableRow>
-              ))}
+              {events.map((event, i) => {
+                const message = event.message || "—";
+                const isLong = message.length > 80;
+                const isExpanded = expanded.has(i);
+                return (
+                  <TableRow key={`${event.created_at}-${i}`}>
+                    <TableCell
+                      className="whitespace-nowrap text-muted-foreground"
+                      title={event.created_at}
+                    >
+                      {formatWhen(event.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={EVENT_VARIANT[event.type] ?? "outline"}>{event.type}</Badge>
+                    </TableCell>
+                    <TableCell
+                      className={`max-w-md font-mono text-xs text-muted-foreground ${
+                        isExpanded ? "wrap-break-word whitespace-pre-wrap" : "truncate"
+                      } ${isLong ? "cursor-pointer" : ""}`}
+                      onClick={isLong ? () => toggleExpanded(i) : undefined}
+                      title={isLong && !isExpanded ? message : undefined}
+                    >
+                      {message}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

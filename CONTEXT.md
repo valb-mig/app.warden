@@ -70,6 +70,11 @@ Monitorar (status, portas, logs) + gerenciar (start/stop) + executar ações qua
 1. Front lista `actions` do config.
 2. `POST /projects/{id}/actions/migrate` → adapter executa comando pré-definido → streama saída.
 
+**Descobrir e configurar projeto novo (front):**
+1. Front → `GET /scan-paths` + `GET /discover` (varre subpastas ainda não registradas).
+2. Usuário clica "configurar" → `POST /discover/preview` (detecta tipo, não grava) → formulário editável + TOML de preview.
+3. Ajusta (grupo, start, quais log_sources/actions manter) → `POST /discover/apply` grava o `.toml` e recarrega o registry na hora.
+
 ---
 
 ## Dados importantes — modelo de config
@@ -255,6 +260,8 @@ Casos concretos cobertos:
 14. **Linguagens do projeto: decorativo, não linguist** — manifesto + extensão, teto de 3 ícones.
 15. **Filtro de log reusa `error_patterns` já existente** — sem taxonomia nova, sem endpoint dedicado além de estender `/services`.
 16. **Multi-máquina é conceito só do front.** Engine continua single-machine; front guarda N conexões nomeadas (localStorage) e troca a ativa via switcher no header, sem endpoint novo no engine.
+17. **Descoberta de projetos via `scan_paths`** — front lista pastas candidatas ainda não configuradas (subpastas diretas, não recursivo) e usa `/discover/preview`+`/apply` pra gerar e gravar o `.toml`, mesmo fluxo do `warden init` só que pela web; mesmo endpoint serve criar e editar.
+18. **Log capturado via PTY, não PIPE puro** — processo filho enxerga terminal, evita buffering em bloco que atrasava log até o processo terminar.
 
 ## Em aberto
 

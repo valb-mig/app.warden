@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ChevronRight,
@@ -9,7 +9,9 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  Search,
   Square,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -48,6 +50,7 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
   const [statuses, setStatuses] = useState<Record<string, ProjectStatus>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const loadProjects = useCallback(async () => {
     try {
@@ -63,6 +66,12 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch inicial ao montar
     loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
+    // projeto novo/editado no SyncDialog (header, fora dessa árvore) — recarrega a lista.
+    window.addEventListener("warden:project-configured", loadProjects);
+    return () => window.removeEventListener("warden:project-configured", loadProjects);
   }, [loadProjects]);
 
   useEffect(() => {
@@ -122,17 +131,29 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
     ? projects.filter((p) => statuses[p.id]?.running).length
     : 0;
 
-  const groups = useMemo(() => {
+  const filtered = useMemo(() => {
     if (!projects) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.id.toLowerCase().includes(q) ||
+        p.type.toLowerCase().includes(q) ||
+        (p.group ?? "").toLowerCase().includes(q),
+    );
+  }, [projects, query]);
+
+  const groups = useMemo(() => {
     const byGroup = new Map<string, Project[]>();
-    for (const project of projects) {
+    for (const project of filtered) {
       const key = project.group || "";
       const list = byGroup.get(key) ?? [];
       list.push(project);
       byGroup.set(key, list);
     }
     return [...byGroup.entries()];
-  }, [projects]);
+  }, [filtered]);
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -149,6 +170,27 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
           </Badge>
         )}
       </div>
+
+      {!error && projects && projects.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="buscar projeto..."
+            className="h-8 pl-7"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <Alert variant="destructive">
@@ -183,28 +225,36 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
         </Card>
       )}
 
-      {!error && projects && projects.length > 0 && (
-        <Card className="py-0">
-          <CardContent className="flex flex-col gap-0 px-0">
-            {groups.map(([group, groupProjects], i) => (
-              <div key={group || "__ungrouped"}>
-                {i > 0 && <Separator />}
-                {group && (
-                  <div className="px-4 pt-3 pb-1 text-xs font-medium text-muted-foreground">
-                    {group}
-                  </div>
-                )}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Projeto</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Portas</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+      {!error && projects && projects.length > 0 && filtered.length === 0 && (
+        <p className="text-sm text-muted-foreground">nenhum projeto bate com a busca</p>
+      )}
+
+      {!error && filtered.length > 0 && (
+        <Card className="flex-1 gap-0 overflow-hidden py-0">
+          <CardContent className="max-h-[70vh] overflow-y-auto px-0">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-card">
+                <TableRow>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Portas</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {groups.map(([group, groupProjects]) => (
+                  <Fragment key={group || "__ungrouped"}>
+                    {group && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell
+                          colSpan={5}
+                          className="bg-muted/30 py-1.5 text-xs font-medium text-muted-foreground"
+                        >
+                          {group}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {groupProjects.map((project) => {
                       const status = statuses[project.id];
                       const running = status?.running ?? false;
@@ -256,10 +306,10 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
                         </TableRow>
                       );
                     })}
-                  </TableBody>
-                </Table>
-              </div>
-            ))}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}

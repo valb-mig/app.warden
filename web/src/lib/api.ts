@@ -64,6 +64,75 @@ export interface ApiConfig {
   token: string;
 }
 
+export interface StartConfig {
+  cmd: string[];
+  cwd: string | null;
+  capture_stdout: boolean;
+}
+
+export interface NotifyConfig {
+  on_error: boolean;
+  on_finished: boolean;
+  on_git_behind: boolean;
+}
+
+export interface GitWatchConfig {
+  watch: boolean;
+  interval: number;
+  remote: string;
+}
+
+export interface LogSourceConfig {
+  name: string;
+  type: "stdout" | "file" | "docker";
+  path: string | null;
+  service: string | null;
+  error_patterns: string[];
+}
+
+export interface ProjectAction {
+  name: string;
+  cmd: string[];
+  interactive: boolean;
+  destructive: boolean;
+}
+
+export interface ProjectConfigPayload {
+  id: string;
+  name: string | null;
+  group: string | null;
+  path: string;
+  type: ProjectType;
+  compose_file: string | null;
+  start: StartConfig | null;
+  notify: NotifyConfig;
+  git: GitWatchConfig;
+  log_sources: LogSourceConfig[];
+  actions: ProjectAction[];
+}
+
+export interface DiscoveredProject {
+  name: string;
+  path: string;
+  type: ProjectType;
+}
+
+export interface ConfigPreview {
+  config: ProjectConfigPayload;
+  toml: string;
+}
+
+export interface BrowseEntry {
+  name: string;
+  path: string;
+}
+
+export interface BrowseResult {
+  path: string;
+  parent: string | null;
+  entries: BrowseEntry[];
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -131,4 +200,42 @@ export const api = {
 
   languages: (c: ApiConfig, id: string) =>
     request<{ languages: string[] }>(c, `/projects/${id}/languages`),
+
+  getScanPaths: (c: ApiConfig) => request<{ scan_paths: string[] }>(c, "/scan-paths"),
+
+  addScanPath: (c: ApiConfig, path: string) =>
+    request<{ scan_paths: string[] }>(c, "/scan-paths", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }),
+
+  removeScanPath: (c: ApiConfig, path: string) =>
+    request<{ scan_paths: string[] }>(c, "/scan-paths", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }),
+
+  discover: (c: ApiConfig) => request<{ projects: DiscoveredProject[] }>(c, "/discover"),
+
+  browse: (c: ApiConfig, path?: string) =>
+    request<BrowseResult>(c, `/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`),
+
+  previewConfig: (c: ApiConfig, path: string, id?: string) =>
+    request<ConfigPreview>(c, "/discover/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, id: id ?? null }),
+    }),
+
+  applyConfig: (c: ApiConfig, config: ProjectConfigPayload) =>
+    request<ConfigPreview>(c, "/discover/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    }),
+
+  getProjectConfig: (c: ApiConfig, id: string) =>
+    request<ProjectConfigPayload>(c, `/projects/${id}/config`),
 };

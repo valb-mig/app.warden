@@ -3,6 +3,7 @@ import { ShieldHalf } from "lucide-react";
 
 import { MachineSwitcher } from "@/components/machine-switcher";
 import { SettingsSheet } from "@/components/settings-sheet";
+import { SyncDialog } from "@/components/sync-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Header() {
@@ -13,6 +14,7 @@ export function Header() {
         Warden
       </Link>
       <div className="flex items-center gap-1">
+        <SyncDialog />
         <MachineSwitcher />
         <ThemeToggle />
         <SettingsSheet />
