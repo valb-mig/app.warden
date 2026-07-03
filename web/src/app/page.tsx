@@ -31,10 +31,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { api, ApiError, type Project, type ProjectStatus } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type GitInfo,
+  type HistoryEvent,
+  type Project,
+  type ProjectStatus,
+} from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 
 const STATUS_POLL_MS = 3000;
+const GIT_POLL_MS = 15000;
+const DISMISSED_KEY = "warden.dismissedAttention";
+
+function loadDismissed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
 
 export default function Dashboard() {
   const { settings } = useSettings();
@@ -48,7 +66,10 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
   const config = { baseUrl, token };
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [statuses, setStatuses] = useState<Record<string, ProjectStatus>>({});
+  const [gitInfo, setGitInfo] = useState<Record<string, GitInfo | null>>({});
+  const [lastEvents, setLastEvents] = useState<Record<string, HistoryEvent | null>>({});
   const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
@@ -67,6 +88,20 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch inicial ao montar
     loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lê localStorage só existe no client, após montar
+    setDismissed(loadDismissed());
+  }, []);
+
+  function dismissAttention(key: string) {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   useEffect(() => {
     // projeto novo/editado no SyncDialog (header, fora dessa árvore) — recarrega a lista.
@@ -107,6 +142,42 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects, baseUrl, token]);
 
+  useEffect(() => {
+    if (!projects || projects.length === 0) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      const entries = await Promise.all(
+        projects.map(async (p) => {
+          const [git, history] = await Promise.all([
+            api.git(config, p.id).catch(() => null),
+            api.history(config, p.id, 1).catch(() => []),
+          ]);
+          return [p.id, git, history[0] ?? null] as const;
+        }),
+      );
+      if (cancelled) return;
+      setGitInfo((prev) => {
+        const next = { ...prev };
+        for (const [id, git] of entries) next[id] = git;
+        return next;
+      });
+      setLastEvents((prev) => {
+        const next = { ...prev };
+        for (const [id, , event] of entries) next[id] = event;
+        return next;
+      });
+    };
+
+    poll();
+    const interval = setInterval(poll, GIT_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, baseUrl, token]);
+
   async function handleToggle(project: Project) {
     const running = statuses[project.id]?.running ?? false;
     setPending((prev) => ({ ...prev, [project.id]: true }));
@@ -130,6 +201,43 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
   const runningCount = projects
     ? projects.filter((p) => statuses[p.id]?.running).length
     : 0;
+
+  const attentionItems = useMemo(() => {
+    if (!projects) return [];
+    const items: { key: string; projectId: string; label: string }[] = [];
+    for (const project of projects) {
+      const event = lastEvents[project.id];
+      const git = gitInfo[project.id];
+      if (event?.type === "error") {
+        items.push({
+          key: `${project.id}-error-${event.created_at}`,
+          projectId: project.id,
+          label: `${project.name}: parou com erro`,
+        });
+      }
+      if (git?.dirty) {
+        items.push({
+          key: `${project.id}-dirty-${git.dirty_count}`,
+          projectId: project.id,
+          label: `${project.name}: ${git.dirty_count} arquivo(s) não commitado(s)`,
+        });
+      }
+      const behind = git?.behind ?? 0;
+      if (behind > 0) {
+        items.push({
+          key: `${project.id}-behind-${behind}`,
+          projectId: project.id,
+          label: `${project.name}: ${behind} commit(s) atrás do origin`,
+        });
+      }
+    }
+    return items;
+  }, [projects, gitInfo, lastEvents]);
+
+  const visibleAttentionItems = useMemo(
+    () => attentionItems.filter((item) => !dismissed.has(item.key)),
+    [attentionItems, dismissed],
+  );
 
   const filtered = useMemo(() => {
     if (!projects) return [];
@@ -170,6 +278,32 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
           </Badge>
         )}
       </div>
+
+      {visibleAttentionItems.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>Precisa de atenção</AlertTitle>
+          <AlertDescription>
+            <ul className="flex flex-col gap-1">
+              {visibleAttentionItems.map((item) => (
+                <li key={item.key} className="flex items-center justify-between gap-2">
+                  <Link href={`/projects/${item.projectId}`} className="hover:underline">
+                    {item.label}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => dismissAttention(item.key)}
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label="Dispensar alerta"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!error && projects && projects.length > 0 && (
         <div className="relative max-w-sm">
@@ -238,6 +372,7 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
                   <TableHead>Projeto</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Git</TableHead>
                   <TableHead>Portas</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -248,7 +383,7 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
                     {group && (
                       <TableRow className="hover:bg-transparent">
                         <TableCell
-                          colSpan={5}
+                          colSpan={6}
                           className="bg-muted/30 py-1.5 text-xs font-medium text-muted-foreground"
                         >
                           {group}
@@ -281,6 +416,21 @@ function ProjectList({ baseUrl, token }: { baseUrl: string; token: string }) {
                               </Badge>
                             ) : (
                               <Skeleton className="h-5 w-16" />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {project.id in gitInfo ? (
+                              (() => {
+                                const git = gitInfo[project.id];
+                                if (!git) return <span className="text-muted-foreground">—</span>;
+                                if (git.dirty)
+                                  return <Badge variant="destructive">sujo ({git.dirty_count})</Badge>;
+                                if ((git.behind ?? 0) > 0)
+                                  return <Badge variant="secondary">atrás ({git.behind})</Badge>;
+                                return <Badge variant="outline">limpo</Badge>;
+                              })()
+                            ) : (
+                              <Skeleton className="h-5 w-14" />
                             )}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
