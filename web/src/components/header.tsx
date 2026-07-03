@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { ShieldHalf } from "lucide-react";
+import { Search, ShieldHalf } from "lucide-react";
 
+import { CommandPalette, openCommandPalette } from "@/components/command-palette";
 import { MachineSwitcher } from "@/components/machine-switcher";
 import { SettingsSheet } from "@/components/settings-sheet";
 import { SyncDialog } from "@/components/sync-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 export function Header() {
   return (
@@ -14,10 +16,19 @@ export function Header() {
         Warden
       </Link>
       <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Abrir command palette"
+          onClick={openCommandPalette}
+        >
+          <Search className="size-4" />
+        </Button>
         <SyncDialog />
         <MachineSwitcher />
         <ThemeToggle />
         <SettingsSheet />
+        <CommandPalette />
       </div>
     </header>
   );
