@@ -49,7 +49,7 @@ fi
 if ! command -v pnpm >/dev/null 2>&1; then
     info "pnpm não encontrado, instalando..."
     curl -fsSL https://get.pnpm.io/install.sh | sh -
-    export PATH="$HOME/.local/share/pnpm:$PATH"
+    export PATH="$HOME/.local/share/pnpm/bin:$PATH"
 fi
 
 command -v just >/dev/null 2>&1 || die "just não encontrado. Instale antes de continuar: https://github.com/casey/just#installation"
