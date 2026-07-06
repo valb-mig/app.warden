@@ -50,6 +50,7 @@ class ProjectConfig(BaseModel):
     path: str
     type: ProjectType
     compose_file: str | None = None
+    compose_services: list[str] = Field(default_factory=list)
     start: StartConfig | None = None
     notify: NotifyConfig = Field(default_factory=NotifyConfig)
     git: GitWatchConfig = Field(default_factory=GitWatchConfig)

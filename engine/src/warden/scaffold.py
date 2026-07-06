@@ -31,10 +31,13 @@ def _slugify(name: str) -> str:
 
 
 def _find_compose_file(path: Path) -> Path | None:
-    for candidate in _COMPOSE_CANDIDATES:
-        found = path / candidate
-        if found.exists():
-            return found
+    # checa a própria pasta e um nível acima — cobre o caso comum de workspace com
+    # vários projetos client (zarb1/zarb2/...) compartilhando um compose na raiz.
+    for base in (path, path.parent):
+        for candidate in _COMPOSE_CANDIDATES:
+            found = base / candidate
+            if found.exists():
+                return found
     return None
 
 
@@ -70,6 +73,11 @@ def detect_type(path: Path) -> ProjectType:
     return "raw"
 
 
+def _match_prefixed_services(services: list[str], project_id: str) -> list[str]:
+    prefixes = (f"{project_id}_", f"{project_id}-")
+    return [s for s in services if s.startswith(prefixes)]
+
+
 def _parse_compose_services(compose_file: Path) -> list[str]:
     """Heurística por indentação, sem parser YAML — cobre o caso comum de 2 espaços."""
     services: list[str] = []
@@ -93,14 +101,35 @@ def _parse_compose_services(compose_file: Path) -> list[str]:
     return services
 
 
-def _build_docker(path: Path) -> dict:
+def _build_docker(path: Path, project_id: str) -> dict:
     compose_file = _find_compose_file(path)
     assert compose_file is not None
-    services = _parse_compose_services(compose_file)
-    log_sources = [LogSource(name=s, type="docker", service=s) for s in services]
+    all_services = _parse_compose_services(compose_file)
+
+    # compose fora da própria pasta (workspace com várias apps client) quase sempre
+    # é compartilhado — restringe pelos serviços prefixados com o id do projeto pra
+    # não fazer start/stop/logs vazar pros vizinhos no mesmo arquivo.
+    own_services = all_services
+    if compose_file.parent != path:
+        matched = _match_prefixed_services(all_services, project_id)
+        if matched:
+            own_services = matched
+
+    log_sources = [LogSource(name=s, type="docker", service=s) for s in own_services]
     if not log_sources:
         log_sources = [LogSource(name="app", type="docker", service="app")]
-    return {"compose_file": compose_file.name, "log_sources": log_sources}
+
+    compose_ref = compose_file.name if compose_file.parent == path else str(compose_file)
+    kwargs: dict = {"compose_file": compose_ref, "log_sources": log_sources}
+    if own_services != all_services:
+        kwargs["compose_services"] = own_services
+
+    justfile = _find_justfile(path)
+    if justfile is not None:
+        actions = [ActionConfig(name=r, cmd=["just", r]) for r in _parse_justfile_recipes(justfile)]
+        if actions:
+            kwargs["actions"] = actions
+    return kwargs
 
 
 def _detect_node_runner(path: Path) -> str:
@@ -136,10 +165,7 @@ def _build_node(path: Path) -> dict:
     return kwargs
 
 
-def _build_php(path: Path) -> dict:
-    if not (path / "artisan").exists():
-        return {}
-
+def _build_laravel(path: Path) -> dict:
     kwargs: dict = {
         "start": StartConfig(cmd=["php", "artisan", "serve"], capture_stdout=True),
         "actions": [
@@ -165,6 +191,30 @@ def _build_php(path: Path) -> dict:
             )
         ]
     return kwargs
+
+
+def _build_plain_php(path: Path) -> dict:
+    """PHP sem artisan (Symfony/ZF/Slim/legado) — sobe com o server embutido do PHP
+    servindo `public/` (padrão de quase todo framework) e importa ações do Justfile
+    quando existir, já que esse tipo de projeto costuma driblar tudo via `just`."""
+    docroot = "public" if (path / "public").exists() else "."
+    kwargs: dict = {
+        "start": StartConfig(cmd=["php", "-S", "0.0.0.0:8000", "-t", docroot], capture_stdout=True),
+        "log_sources": [LogSource(name="stdout", type="stdout")],
+    }
+    justfile = _find_justfile(path)
+    if justfile is not None:
+        recipes = _parse_justfile_recipes(justfile)
+        actions = [ActionConfig(name=r, cmd=["just", r]) for r in recipes]
+        if actions:
+            kwargs["actions"] = actions
+    return kwargs
+
+
+def _build_php(path: Path) -> dict:
+    if (path / "artisan").exists():
+        return _build_laravel(path)
+    return _build_plain_php(path)
 
 
 def _detect_python_entry(path: Path) -> tuple[str, list[str]] | None:
@@ -240,7 +290,6 @@ def _build_raw(path: Path) -> dict:
 
 
 _BUILDERS = {
-    "docker": _build_docker,
     "node": _build_node,
     "php": _build_php,
     "python": _build_python,
@@ -256,7 +305,7 @@ def build_config(path: str | Path, project_id: str | None = None) -> ProjectConf
 
     ptype = detect_type(resolved)
     pid = project_id or _slugify(resolved.name)
-    extra = _BUILDERS[ptype](resolved)
+    extra = _build_docker(resolved, pid) if ptype == "docker" else _BUILDERS[ptype](resolved)
     return ProjectConfig(id=pid, name=resolved.name, path=str(resolved), type=ptype, **extra)
 
 
@@ -270,6 +319,8 @@ def render_toml(config: ProjectConfig) -> str:
     data["type"] = config.type
     if config.compose_file:
         data["compose_file"] = config.compose_file
+    if config.compose_services:
+        data["compose_services"] = config.compose_services
     if config.start:
         data["start"] = config.start.model_dump(exclude_none=True, exclude_defaults=True)
     if config.notify != NotifyConfig():

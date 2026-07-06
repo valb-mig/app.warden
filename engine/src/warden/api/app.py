@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from warden.api.deps import verify_token
 from warden.api.discovery_routes import router as discovery_router
@@ -40,5 +41,12 @@ def create_app(config_dir: Path) -> FastAPI:
     app.include_router(discovery_router, dependencies=[Depends(verify_token)])
     app.include_router(system_router, dependencies=[Depends(verify_token)])
     app.include_router(ws_router)
+
+    @app.exception_handler(ValueError)
+    @app.exception_handler(NotImplementedError)
+    async def config_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        # config de projeto invalida (ex: sem [start], adapter não implementado) —
+        # erro de usuário, não bug do servidor: 422 com mensagem, sem traceback.
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     return app

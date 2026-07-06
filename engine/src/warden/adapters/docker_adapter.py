@@ -9,9 +9,15 @@ from warden.vitals import VitalsSampler
 
 
 class DockerAdapter(Adapter):
+    """`compose_services` vazio = compose file é só desse projeto, comando afeta o
+    arquivo inteiro (comportamento antigo). Preenchido = compose file compartilhado
+    por vários projetos (stack único por workspace) — todo comando fica restrito
+    aos serviços listados, pra não subir/derrubar/misturar log dos vizinhos."""
+
     def __init__(self, config: ProjectConfig):
         self.config = config
         self._compose_file = config.compose_file or "docker-compose.yml"
+        self._services = config.compose_services
         self._vitals = VitalsSampler()
 
     def _compose(self, *args: str) -> subprocess.CompletedProcess:
@@ -23,14 +29,16 @@ class DockerAdapter(Adapter):
         )
 
     def start(self) -> None:
-        self._compose("up", "-d")
+        self._compose("up", "-d", *self._services)
 
     def stop(self) -> None:
-        self._compose("stop")
+        self._compose("stop", *self._services)
 
     def status(self) -> ProcessStatus:
         result = self._compose("ps", "--format", "json")
         containers = _parse_ps_json(result.stdout)
+        if self._services:
+            containers = [c for c in containers if c.get("Service") in self._services]
         running = [c for c in containers if c.get("State") == "running"]
         if not running:
             return ProcessStatus(running=False)
@@ -68,11 +76,15 @@ class DockerAdapter(Adapter):
         args = ["logs", "--no-color", "--tail", str(tail)]
         if service:
             args.append(service)
+        elif self._services:
+            args.extend(self._services)
         result = self._compose(*args)
         output = result.stdout + result.stderr
         return [line for line in output.splitlines() if line.strip()]
 
     def services(self) -> list[str]:
+        if self._services:
+            return self._services
         result = self._compose("config", "--services")
         return [line for line in result.stdout.splitlines() if line.strip()]
 
