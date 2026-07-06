@@ -21,6 +21,8 @@ from warden.git import (
 from warden.git_watcher import GitWatcher
 from warden.languages import detect_languages
 from warden.notifier import Notifier, NullNotifier
+from warden.projects_watcher import DEFAULT_INTERVAL as PROJECTS_WATCH_INTERVAL
+from warden.projects_watcher import ProjectsWatcher
 from warden.registry import Registry
 from warden.store import EventStore
 from warden.system_vitals import SystemVitals, system_vitals
@@ -54,6 +56,7 @@ class Engine:
         self._adapters: dict[str, Adapter] = {}
         self._file_watchers: list[FileErrorWatcher] = []
         self._git_watchers: list[GitWatcher] = []
+        self._projects_watcher: ProjectsWatcher | None = None
 
     def _maybe_notify(self, event: Event) -> None:
         try:
@@ -67,10 +70,16 @@ class Engine:
         elif event.type == EventType.GIT_BEHIND and project.notify.on_git_behind:
             self.notifier.notify(event, project)
 
-    def boot(self) -> None:
+    def boot(self, projects_watch_interval: float = PROJECTS_WATCH_INTERVAL) -> None:
         self.registry.load()
         self._start_file_watchers()
         self._start_git_watchers()
+        self._projects_watcher = ProjectsWatcher(
+            self.registry.projects_dir,
+            on_change=self.reload_registry,
+            interval=projects_watch_interval,
+        )
+        self._projects_watcher.start()
         prime_system_vitals()
 
     def reload_registry(self) -> None:
@@ -89,6 +98,9 @@ class Engine:
         self._start_git_watchers()
 
     def shutdown(self) -> None:
+        if self._projects_watcher is not None:
+            self._projects_watcher.stop()
+            self._projects_watcher = None
         for watcher in self._file_watchers:
             watcher.stop()
         self._file_watchers.clear()
@@ -140,9 +152,7 @@ class Engine:
         path = Path(log_path)
         return path if path.is_absolute() else Path(project.path) / path
 
-    def _make_file_error_handler(
-        self, project_id: str, source_name: str
-    ) -> Callable[[str], None]:
+    def _make_file_error_handler(self, project_id: str, source_name: str) -> Callable[[str], None]:
         def handler(entry: str) -> None:
             self.bus.publish(
                 Event(
@@ -189,9 +199,7 @@ class Engine:
         project = self.registry.get(project_id)
         return git_info(Path(project.path))
 
-    def git_command(
-        self, project_id: str, verb: str, confirmed: bool = False
-    ) -> GitCommandResult:
+    def git_command(self, project_id: str, verb: str, confirmed: bool = False) -> GitCommandResult:
         project = self.registry.get(project_id)
         if verb in CONFIRM_VERBS and not confirmed:
             raise ConfirmationRequired(f"verbo git {verb!r} exige confirmação")

@@ -258,6 +258,41 @@ def test_reload_registry_keeps_adapter_for_running_project(tmp_path: Path) -> No
     _wait_until(lambda: engine.status("demo").running is False)
 
 
+def test_projects_watcher_picks_up_new_toml_without_manual_reload(tmp_path: Path) -> None:
+    engine = Engine(tmp_path)
+    engine.boot(projects_watch_interval=0.05)
+
+    assert engine.registry.all() == []
+
+    _write_project(tmp_path, "demo", [sys.executable, "-c", "pass"])
+    _wait_until(lambda: len(engine.registry.all()) == 1)
+    assert engine.registry.get("demo").id == "demo"
+
+
+def test_projects_watcher_picks_up_edit_to_stopped_project(tmp_path: Path) -> None:
+    marker = tmp_path / "marker.txt"
+    old_cmd = [sys.executable, "-c", f"open({str(marker)!r}, 'w').write('old')"]
+    _write_project(tmp_path, "demo", old_cmd)
+    store = EventStore(tmp_path / "warden.db")
+    engine = Engine(tmp_path, store=store)
+    engine.boot(projects_watch_interval=0.05)
+    events: list = []
+    engine.bus.subscribe(events.append)
+
+    engine.start("demo")
+    _wait_until(lambda: any(e.type == EventType.FINISHED for e in events))
+    assert marker.read_text() == "old"
+
+    new_cmd = [sys.executable, "-c", f"open({str(marker)!r}, 'w').write('new')"]
+    _write_project(tmp_path, "demo", new_cmd)
+    _wait_until(lambda: engine.registry.get("demo").start.cmd == new_cmd)
+
+    events.clear()
+    engine.start("demo")
+    _wait_until(lambda: any(e.type == EventType.FINISHED for e in events))
+    assert marker.read_text() == "new"
+
+
 def test_non_destructive_action_skips_audit(tmp_path: Path) -> None:
     _write_project_with_action(
         tmp_path, "demo", '[[actions]]\nname = "hello"\ncmd = ["echo", "hi"]\n'
