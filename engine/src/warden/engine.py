@@ -73,6 +73,21 @@ class Engine:
         self._start_git_watchers()
         prime_system_vitals()
 
+    def reload_registry(self) -> None:
+        """Recarrega configs do disco e invalida adapters cacheados que não estão rodando."""
+        self.registry.load()
+        for project_id in list(self._adapters):
+            if not self._adapters[project_id].status().running:
+                del self._adapters[project_id]
+        for watcher in self._file_watchers:
+            watcher.stop()
+        for watcher in self._git_watchers:
+            watcher.stop()
+        self._file_watchers.clear()
+        self._git_watchers.clear()
+        self._start_file_watchers()
+        self._start_git_watchers()
+
     def shutdown(self) -> None:
         for watcher in self._file_watchers:
             watcher.stop()

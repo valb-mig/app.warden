@@ -223,6 +223,41 @@ def test_destructive_action_confirmed_runs_and_audits(tmp_path: Path) -> None:
     assert audit[0]["cmd"] == ["echo", "wiped"]
 
 
+def test_reload_registry_picks_up_new_cmd_for_stopped_project(tmp_path: Path) -> None:
+    marker = tmp_path / "marker.txt"
+    old_cmd = [sys.executable, "-c", f"open({str(marker)!r}, 'w').write('old')"]
+    _write_project(tmp_path, "demo", old_cmd)
+    engine, events = _engine_with_store(tmp_path)
+
+    engine.start("demo")
+    _wait_until(lambda: any(e.type == EventType.FINISHED for e in events))
+    assert marker.read_text() == "old"
+
+    new_cmd = [sys.executable, "-c", f"open({str(marker)!r}, 'w').write('new')"]
+    _write_project(tmp_path, "demo", new_cmd)
+    engine.reload_registry()
+
+    events.clear()
+    engine.start("demo")
+    _wait_until(lambda: any(e.type == EventType.FINISHED for e in events))
+    assert marker.read_text() == "new"
+
+
+def test_reload_registry_keeps_adapter_for_running_project(tmp_path: Path) -> None:
+    _write_project(tmp_path, "demo", [sys.executable, "-c", "import time; time.sleep(30)"])
+    engine, events = _engine_with_store(tmp_path)
+
+    engine.start("demo")
+    _wait_until(lambda: engine.status("demo").running is True)
+    running_adapter = engine._adapters["demo"]
+
+    engine.reload_registry()
+
+    assert engine._adapters["demo"] is running_adapter
+    engine.stop("demo")
+    _wait_until(lambda: engine.status("demo").running is False)
+
+
 def test_non_destructive_action_skips_audit(tmp_path: Path) -> None:
     _write_project_with_action(
         tmp_path, "demo", '[[actions]]\nname = "hello"\ncmd = ["echo", "hi"]\n'

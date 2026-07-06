@@ -94,7 +94,7 @@ def apply(body: ProjectConfig, engine: Engine = Depends(get_engine)) -> ConfigOu
     target = engine.registry.config_dir / PROJECTS_DIRNAME / f"{body.id}.toml"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(toml_text)
-    engine.registry.load()
+    engine.reload_registry()
     return ConfigOut(config=body, toml=toml_text)
 
 
