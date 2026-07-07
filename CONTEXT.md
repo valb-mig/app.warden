@@ -2,7 +2,7 @@
 
 Hub central pra monitorar e gerenciar **todos os projetos locais da máquina** (dockerizados ou não), acessível de forma segura pelo celular. Histórico de nome: MasterHub → MegaHub → **Warden**.
 
-Status atual: **fase de design**, nenhum código ainda. Existem `TODO.md` (decisões de arquitetura, fonte da verdade), este `CONTEXT.md` (visão + design), e dois rascunhos visuais (`mainidea.png`, `fragmentando.png`).
+Status atual: fases 1-10 do MVP implementadas (ver `TODO.md`). Existem `TODO.md` (decisões de arquitetura, fonte da verdade), este `CONTEXT.md` (visão + design), dois rascunhos visuais (`mainidea.png`, `fragmentando.png`), e `NEW_CONTEXT.md` (rascunho de arquitetura-alvo pra migração futura Python→C#, só depois das lógicas principais estarem maduras — não iniciar em paralelo ao MVP atual).
 
 ## Problema
 
@@ -219,7 +219,7 @@ Parte sensível — comandos remotos numa máquina que roda tudo. Defesa em cama
 
 1. **Engine nunca exposto direto.** API faz bind só em `127.0.0.1`. Nada escuta em `0.0.0.0`. Sem port-forward no roteador.
 2. **Transporte: Tailscale.** VPN WireGuard, device-level auth. Celular entra na tailnet; só dispositivos autenticados na conta alcançam a API. Sem URL pública.
-3. **Auth na própria API** (mesmo dentro da tailnet, defesa em profundidade): token bearer ou sessão.
+3. **Auth na própria API** (mesmo dentro da tailnet, defesa em profundidade): token bearer admin (global) **+ tokens escopados** pra apps terceiras do mesmo dono (ex: leadmaster), cada um limitado a uma lista de `project_id`. Emissão só local (CLI/config), nunca por endpoint HTTP.
 4. **Comandos = allowlist, não shell livre.** Celular NÃO manda shell arbitrário. Só dispara `actions` pré-definidas no config (migrate, seed, restart) ou verbos git de uma allowlist embutida (`fetch/sync/pull/push` — nunca `git <qualquer coisa>`). Rodar comando em container = ação nomeada declarada, não caixa de texto que executa qualquer coisa.
 5. **Ações destrutivas com confirmação** (`migrate --force`, `down`, `shutdown`) + log de auditoria.
 6. **Segredos.** Configs em `~/.warden/projects/` com permissão `600`. Token de API só no device (secure storage), não hardcoded, não commitado.
@@ -239,6 +239,7 @@ Casos concretos cobertos:
 | Ver drift de git / sincronizar | card Git → `sync` (fetch+FF) ou `pull`/`push` com confirmação |
 | Saber se código rodando é o do topo do origin | badge "desatualizado" (`running && behind>0`) |
 | Achar linha de erro específica no log | busca por substring + toggle "só erros" no log viewer |
+| App externa (ex: leadmaster) dispara start/stop sozinha | token escopado por projeto, mesmos endpoints REST, sem UI |
 
 ---
 
@@ -262,6 +263,7 @@ Casos concretos cobertos:
 16. **Multi-máquina é conceito só do front.** Engine continua single-machine; front guarda N conexões nomeadas (localStorage) e troca a ativa via switcher no header, sem endpoint novo no engine.
 17. **Descoberta de projetos via `scan_paths`** — front lista pastas candidatas ainda não configuradas (subpastas diretas, não recursivo) e usa `/discover/preview`+`/apply` pra gerar e gravar o `.toml`, mesmo fluxo do `warden init` só que pela web; mesmo endpoint serve criar e editar.
 18. **Log capturado via PTY, não PIPE puro** — processo filho enxerga terminal, evita buffering em bloco que atrasava log até o processo terminar.
+19. **API externa pra apps do próprio usuário (ex: leadmaster) é token escopado, não broker de mensagens** — reusa a API REST já existente, token limitado a lista de `project_id`, emissão só local (CLI/config), sem endpoint HTTP pra criar token.
 
 ## Em aberto
 
