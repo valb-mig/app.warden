@@ -1,0 +1,6 @@
+@Warden.Ator_HostAddress = http://localhost:5291
+
+GET {{Warden.Ator_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

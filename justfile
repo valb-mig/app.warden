@@ -36,6 +36,22 @@ web-lint:
 web-build:
     cd web && pnpm build
 
+# build da solução .NET (Ator/Admin/Domain/Contracts — migração C#, ver NEW_CONTEXT.md)
+dotnet-build:
+    cd ator && dotnet build
+
+# testes do lado .NET
+dotnet-test:
+    cd ator && dotnet test
+
+# roda o Ator (API/daemon) em dev
+dotnet-ator:
+    cd ator && dotnet run --project Warden.Ator
+
+# roda o Admin (tray Avalonia) em dev
+dotnet-admin:
+    cd ator && dotnet run --project Warden.Admin
+
 # imprime os comandos pra subir engine + front (um em cada terminal) e o link de acesso (local/LAN/tailscale)
 boot:
     #!/usr/bin/env bash
