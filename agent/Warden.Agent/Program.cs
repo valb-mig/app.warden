@@ -10,6 +10,7 @@ using Warden.Agent.Hubs;
 using Warden.Agent.Transport;
 using Warden.Domain;
 using Warden.Domain.Config;
+using Warden.Domain.Git;
 using Warden.Domain.Trust;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -121,6 +122,7 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
         KeyNotFoundException => (StatusCodes.Status404NotFound, error.Message),
         ManifestNotApprovedException => (StatusCodes.Status403Forbidden, error.Message),
         ActionInteractiveException => (StatusCodes.Status400BadRequest, error.Message),
+        GitVerbNotSupportedException => (StatusCodes.Status400BadRequest, error.Message),
         ConfirmationRequiredException => (StatusCodes.Status409Conflict, error.Message),
         _ => (StatusCodes.Status500InternalServerError, "erro interno"),
     };
@@ -142,6 +144,14 @@ app.MapGroup("/projects")
         return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
     })
     .MapProjectEndpoints();
+
+app.MapGroup("/system")
+    .AddEndpointFilter(async (context, next) =>
+    {
+        var header = context.HttpContext.Request.Headers.Authorization.ToString();
+        return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
+    })
+    .MapSystemEndpoints();
 
 app.MapHub<LogsHub>("/hubs/logs");
 

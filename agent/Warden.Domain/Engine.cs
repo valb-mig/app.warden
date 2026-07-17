@@ -1,18 +1,22 @@
 using System.Collections.Concurrent;
 using Warden.Domain.Adapters;
 using Warden.Domain.Config;
+using Warden.Domain.Languages;
 using Warden.Domain.Trust;
+using Warden.Domain.Vitals;
 
 namespace Warden.Domain;
 
 /// <summary>
 /// Facade que amarra <see cref="Registry"/> + <see cref="AdapterFactory"/> + <see cref="ManifestRegistry"/>
 /// pro Agent consumir — equivalente ao `Engine` do engine Python, mas escopado só ao que já foi
-/// portado (bus/notifier/watchers/history/git/languages ficam pra fase 8, paridade de feature).
+/// portado (bus/notifier/watchers/history/languages ainda ficam pra fase 8, git de leitura+comandos
+/// já entrou — ver NEW_CONTEXT.md §12 fase 8).
 /// </summary>
 public sealed class Engine(Registry registry, ManifestRegistry manifestRegistry)
 {
     private readonly ConcurrentDictionary<string, IAdapter> _adapters = new();
+    private readonly SystemVitalsSampler _systemVitalsSampler = new();
 
     public void Boot()
     {
@@ -21,6 +25,7 @@ public sealed class Engine(Registry registry, ManifestRegistry manifestRegistry)
         {
             manifestRegistry.Refresh(project);
         }
+        _systemVitalsSampler.Prime();
     }
 
     public IReadOnlyList<ProjectConfig> AllProjects() => registry.All();
@@ -82,6 +87,28 @@ public sealed class Engine(Registry registry, ManifestRegistry manifestRegistry)
         }
 
         return CommandExecutor.Run(command);
+    }
+
+    public SystemVitalsInfo SystemVitals() => _systemVitalsSampler.Sample();
+
+    public IReadOnlyList<string> Languages(string projectId) =>
+        LanguageDetector.Detect(GetProject(projectId).Path);
+
+    public Git.GitInfo? GitInfo(string projectId) => Git.GitService.Info(GetProject(projectId).Path);
+
+    /// <summary>
+    /// Verbos mutantes (pull/push) exigem <c>confirmed=true</c> — mesma semântica 409 das ações
+    /// destrutivas, checada aqui e não dentro do <see cref="Git.GitService"/> (que fica agnóstico
+    /// de HTTP/confirmação, só de allowlist/guardas de working tree).
+    /// </summary>
+    public Git.GitCommandResult GitCommand(string projectId, string verb, bool confirmed = false)
+    {
+        var project = GetProject(projectId);
+        if (Git.GitService.ConfirmVerbs.Contains(verb) && !confirmed)
+        {
+            throw new ConfirmationRequiredException($"verbo git \"{verb}\" exige confirmação");
+        }
+        return Git.GitService.Command(project.Path, verb, project.Git.Remote);
     }
 
     private IAdapter GetAdapter(string projectId) =>

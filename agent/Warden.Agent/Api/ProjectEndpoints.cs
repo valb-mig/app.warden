@@ -86,6 +86,50 @@ public static class ProjectEndpoints
             return Results.Ok(new ActionResultDto { ExitCode = result.ExitCode, Output = result.Output });
         });
 
+        group.MapGet("/{projectId}/languages", (string projectId, Engine engine) =>
+        {
+            engine.GetProject(projectId);
+            return Results.Ok(new LanguagesDto { Languages = engine.Languages(projectId) });
+        });
+
+        group.MapGet("/{projectId}/git", (string projectId, Engine engine) =>
+        {
+            engine.GetProject(projectId);
+            var info = engine.GitInfo(projectId);
+            if (info is null) return Results.Ok((GitInfoDto?)null);
+            return Results.Ok(new GitInfoDto
+            {
+                Branch = info.Branch,
+                Dirty = info.Dirty,
+                DirtyCount = info.DirtyCount,
+                Ahead = info.Ahead,
+                Behind = info.Behind,
+                HasRemote = info.HasRemote,
+                LastCommit = info.LastCommit is { } commit
+                    ? new GitCommitDto
+                    {
+                        Hash = commit.Hash,
+                        Subject = commit.Subject,
+                        Author = commit.Author,
+                        Relative = commit.Relative,
+                    }
+                    : null,
+            });
+        });
+
+        group.MapPost("/{projectId}/git/{verb}", (string projectId, string verb, Engine engine, bool confirm = false) =>
+        {
+            engine.GetProject(projectId);
+            var result = engine.GitCommand(projectId, verb, confirm);
+            return Results.Ok(new GitCommandResultDto
+            {
+                Ok = result.Ok,
+                ExitCode = result.ExitCode,
+                Output = result.Output,
+                Refused = result.Refused,
+            });
+        });
+
         return group;
     }
 }
