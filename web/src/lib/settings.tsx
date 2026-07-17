@@ -2,16 +2,25 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+/**
+ * "python" = engine FastAPI atual (WebSocket cru pra log). "agent" = Warden.Agent em C# (SignalR).
+ * Os dois falam o mesmo contrato REST pros endpoints já portados (NEW_CONTEXT.md §12 fase 5-6) —
+ * só o transporte de log ao vivo diverge, por isso o componente de log precisa saber qual é.
+ */
+export type BackendKind = "python" | "agent";
+
 export interface Machine {
   id: string;
   name: string;
   baseUrl: string;
   token: string;
+  kind: BackendKind;
 }
 
 export interface Settings {
   baseUrl: string;
   token: string;
+  kind: BackendKind;
 }
 
 interface SettingsContextValue {
@@ -36,15 +45,21 @@ function loadInitialState(): { machines: Machine[]; activeMachineId: string | nu
   try {
     const rawMachines = localStorage.getItem(MACHINES_KEY);
     if (rawMachines) {
-      const machines: Machine[] = JSON.parse(rawMachines);
+      // máquinas salvas antes da fase 7 não têm `kind` no localStorage — assume "python" (era o único
+      // backend até então). Tipado como parcial de propósito: o JSON gravado antes dessa migração
+      // não bate com o `Machine` atual, mesmo que o compilador não veja essa diferença de versão.
+      const raw: Array<Omit<Machine, "kind"> & { kind?: BackendKind }> = JSON.parse(rawMachines);
+      const machines: Machine[] = raw.map((m) => ({ kind: "python", ...m }));
       const activeMachineId = localStorage.getItem(ACTIVE_ID_KEY);
       return { machines, activeMachineId };
     }
 
     const legacy = localStorage.getItem(LEGACY_SETTINGS_KEY);
     if (legacy) {
-      const parsed: Settings = JSON.parse(legacy);
-      const machine: Machine = { id: makeId(), name: "Minha máquina", ...parsed };
+      // blob antigo de antes da fase 6 (single-machine) e antes da fase 7 (kind) — nenhuma das duas
+      // garantida presente, só `baseUrl`/`token` são certos de existir.
+      const parsed: Pick<Settings, "baseUrl" | "token"> = JSON.parse(legacy);
+      const machine: Machine = { id: makeId(), name: "Minha máquina", kind: "python", ...parsed };
       localStorage.setItem(MACHINES_KEY, JSON.stringify([machine]));
       localStorage.setItem(ACTIVE_ID_KEY, machine.id);
       localStorage.removeItem(LEGACY_SETTINGS_KEY);
@@ -108,7 +123,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   if (!loaded) return null;
 
   const activeMachine = machines.find((m) => m.id === activeMachineId) ?? null;
-  const settings = activeMachine ? { baseUrl: activeMachine.baseUrl, token: activeMachine.token } : null;
+  const settings = activeMachine
+    ? { baseUrl: activeMachine.baseUrl, token: activeMachine.token, kind: activeMachine.kind }
+    : null;
 
   return (
     <SettingsContext.Provider

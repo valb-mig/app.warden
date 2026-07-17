@@ -3,12 +3,14 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Warden.Agent.Admin;
 using Warden.Agent.Api;
 using Warden.Agent.Auth;
 using Warden.Agent.Hubs;
 using Warden.Agent.Transport;
 using Warden.Domain;
 using Warden.Domain.Config;
+using Warden.Domain.Git;
 using Warden.Domain.Trust;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,10 +19,13 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamin
 builder.Services.AddSignalR();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-var apiPort = builder.Configuration.GetValue("ApiPort", 8420);
 var configDir = builder.Configuration.GetValue<string>("ConfigDir")
     ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".warden");
 Directory.CreateDirectory(configDir);
+
+var globalConfigPath = Path.Combine(configDir, "config.toml");
+var globalConfig = ConfigLoader.LoadGlobalConfig(globalConfigPath);
+var apiPort = builder.Configuration.GetValue<int?>("ApiPort") ?? globalConfig.ApiPort;
 
 var registry = new Registry(configDir);
 var trustStore = new SqliteTrustStore(Path.Combine(configDir, "warden.db"));
@@ -60,7 +65,21 @@ if (!isTesting)
     builder.WebHost.ConfigureKestrel(options => options.Listen(consoleEndpoint));
 }
 
+// Superfície de Admin: unix socket local, nunca pela rede (NEW_CONTEXT.md §10.7). Sem dependência de
+// Tailscale — fica de fora só em teste (WebApplicationFactory usa TestServer, que nunca bind real
+// mesmo) e no Windows (named pipe ainda não implementado, ver Admin/AdminSocket.cs).
+var adminSocketPath = !isTesting && !OperatingSystem.IsWindows() ? AdminSocket.ResolvePath(configDir) : null;
+if (adminSocketPath is not null)
+{
+    builder.WebHost.ConfigureKestrel(options => options.ListenUnixSocket(adminSocketPath));
+}
+
 var app = builder.Build();
+
+if (adminSocketPath is not null)
+{
+    app.Lifetime.ApplicationStarted.Register(() => AdminSocket.Secure(adminSocketPath));
+}
 
 if (!isTesting && consoleEndpoint is not null)
 {
@@ -69,8 +88,13 @@ if (!isTesting && consoleEndpoint is not null)
     // Defesa em profundidade: confirma que o bind real bate com o esperado assim que o Kestrel sobe.
     app.Lifetime.ApplicationStarted.Register(() =>
     {
-        var boundAddresses = app.Services.GetRequiredService<IServer>()
-            .Features.Get<IServerAddressesFeature>()?.Addresses.ToList() ?? [];
+        // Filtra o endereço do unix socket do Admin antes de checar — o bind guard cuida só da
+        // superfície do Console/Tailscale, o socket já tem sua própria garantia (AdminSocket + filtro
+        // de LocalIpAddress); as duas coisas coexistem de propósito, não é bind divergente.
+        var boundAddresses = (app.Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()?.Addresses ?? [])
+            .Where(a => !a.StartsWith("http://unix:", StringComparison.Ordinal))
+            .ToList();
         try
         {
             BindGuard.AssertSingleExpectedAddress(boundAddresses, boundEndpoint);
@@ -98,6 +122,7 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
         KeyNotFoundException => (StatusCodes.Status404NotFound, error.Message),
         ManifestNotApprovedException => (StatusCodes.Status403Forbidden, error.Message),
         ActionInteractiveException => (StatusCodes.Status400BadRequest, error.Message),
+        GitVerbNotSupportedException => (StatusCodes.Status400BadRequest, error.Message),
         ConfirmationRequiredException => (StatusCodes.Status409Conflict, error.Message),
         _ => (StatusCodes.Status500InternalServerError, "erro interno"),
     };
@@ -120,7 +145,31 @@ app.MapGroup("/projects")
     })
     .MapProjectEndpoints();
 
+app.MapGroup("/system")
+    .AddEndpointFilter(async (context, next) =>
+    {
+        var header = context.HttpContext.Request.Headers.Authorization.ToString();
+        return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
+    })
+    .MapSystemEndpoints();
+
 app.MapHub<LogsHub>("/hubs/logs");
+
+if (adminSocketPath is not null)
+{
+    app.MapGroup("/admin")
+        .AddEndpointFilter(async (context, next) =>
+        {
+            // Garantia estrutural, não só "não mapeamos essas rotas lá fora": uma conexão que chegou
+            // pelo listener TCP (Console/Tailscale) sempre tem LocalIpAddress preenchido; só o unix
+            // socket do Admin deixa esse campo null. Se algo um dia proxiar `/admin` pra fora, isso
+            // recusa mesmo assim.
+            return context.HttpContext.Connection.LocalIpAddress is null
+                ? await next(context)
+                : Results.NotFound();
+        })
+        .MapAdminEndpoints(globalConfigPath);
+}
 
 app.Run();
 return 0;

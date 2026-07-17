@@ -30,6 +30,11 @@ public sealed record ServicesDto
     public IReadOnlyList<string> ErrorPatterns { get; init; } = [];
 }
 
+public sealed record LanguagesDto
+{
+    public required IReadOnlyList<string> Languages { get; init; }
+}
+
 public sealed record ActionDto
 {
     public required string Name { get; init; }
@@ -44,4 +49,42 @@ public sealed record ActionResultDto
 {
     public required int ExitCode { get; init; }
     public required string Output { get; init; }
+}
+
+public sealed record GitCommitDto
+{
+    public required string Hash { get; init; }
+    public required string Subject { get; init; }
+    public required string Author { get; init; }
+    public required string Relative { get; init; }
+}
+
+public sealed record GitInfoDto
+{
+    public required string Branch { get; init; }
+    public required bool Dirty { get; init; }
+    public required int DirtyCount { get; init; }
+    public int? Ahead { get; init; }
+    public int? Behind { get; init; }
+    public required bool HasRemote { get; init; }
+    public GitCommitDto? LastCommit { get; init; }
+}
+
+public sealed record GitCommandResultDto
+{
+    public required bool Ok { get; init; }
+    public required int ExitCode { get; init; }
+    public required string Output { get; init; }
+    public required bool Refused { get; init; }
+}
+
+public sealed record SystemVitalsDto
+{
+    public required double CpuPercent { get; init; }
+    public required double MemoryPercent { get; init; }
+    public required double MemoryUsedMb { get; init; }
+    public required double MemoryTotalMb { get; init; }
+    public required double DiskPercent { get; init; }
+    public required double DiskUsedGb { get; init; }
+    public required double DiskTotalGb { get; init; }
 }

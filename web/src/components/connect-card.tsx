@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSettings } from "@/lib/settings";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type BackendKind, useSettings } from "@/lib/settings";
 
 export function ConnectCard() {
   const { addMachine } = useSettings();
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:8420");
   const [token, setToken] = useState("");
+  const [kind, setKind] = useState<BackendKind>("python");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    addMachine({ name, baseUrl: baseUrl.replace(/\/$/, ""), token });
+    addMachine({ name, baseUrl: baseUrl.replace(/\/$/, ""), token, kind });
   }
 
   return (
@@ -35,6 +37,15 @@ export function ConnectCard() {
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-2">
+              <Label>Backend</Label>
+              <Tabs value={kind} onValueChange={(v) => setKind(v as BackendKind)}>
+                <TabsList>
+                  <TabsTrigger value="python">Python (engine atual)</TabsTrigger>
+                  <TabsTrigger value="agent">Agent (C#, em teste)</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="name">Nome da máquina</Label>
               <Input
