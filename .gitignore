@@ -11,6 +11,10 @@ web/node_modules/
 web/.next/
 web/out/
 
+# dotnet
+agent/**/bin/
+agent/**/obj/
+
 # local runtime
 *.db
 *.sqlite3

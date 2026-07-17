@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Warden.Admin/Warden.Admin.csproj" />
+  <Project Path="Warden.Agent.Tests/Warden.Agent.Tests.csproj" />
+  <Project Path="Warden.Agent/Warden.Agent.csproj" />
+  <Project Path="Warden.Contracts/Warden.Contracts.csproj" />
+  <Project Path="Warden.Domain.Tests/Warden.Domain.Tests.csproj" />
+  <Project Path="Warden.Domain/Warden.Domain.csproj" />
+</Solution>

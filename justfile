@@ -36,6 +36,22 @@ web-lint:
 web-build:
     cd web && pnpm build
 
+# build da solução .NET (Agent/Admin/Domain/Contracts — migração C#, ver NEW_CONTEXT.md)
+dotnet-build:
+    cd agent && dotnet build
+
+# testes do lado .NET
+dotnet-test:
+    cd agent && dotnet test
+
+# roda o Agent (API/daemon) em dev
+dotnet-agent:
+    cd agent && dotnet run --project Warden.Agent
+
+# roda o Admin (tray Avalonia) em dev
+dotnet-admin:
+    cd agent && dotnet run --project Warden.Admin
+
 # imprime os comandos pra subir engine + front (um em cada terminal) e o link de acesso (local/LAN/tailscale)
 boot:
     #!/usr/bin/env bash
