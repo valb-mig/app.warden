@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Eraser, Loader2, Maximize2, Minimize2, Search, TriangleAlert, X } from "lucide-react";
+import * as signalR from "@microsoft/signalr";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,6 +183,42 @@ const LogStream = forwardRef<
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (config.kind === "agent") {
+      // SignalR: `Subscribe` manda o backlog do RingBuffer na primeira leva de "LogLines", depois só
+      // as linhas novas — mesmo efeito do backlog automático do WS, só que via invoke explícito.
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl(api.hubUrl(config), {
+          accessTokenFactory: () => config.token,
+          // auth é bearer token via query, não cookie — sem isso o browser manda a negociação com
+          // credentials "include", que o CORS `AllowAnyOrigin` do Agent recusa de propósito (wildcard
+          // + credenciais não é permitido pela spec; mesma nota de "CORS aberto é seguro aqui" do Program.cs).
+          withCredentials: false,
+        })
+        .withAutomaticReconnect()
+        .build();
+
+      connection.on("LogLines", (newLines: string[]) => {
+        setLines((prev) => [...prev, ...newLines].slice(-MAX_LINES));
+      });
+      connection.onreconnecting(() => setConnected(false));
+      connection.onreconnected(() => {
+        setConnected(true);
+        connection.invoke("Subscribe", projectId, service ?? null).catch(() => {});
+      });
+
+      connection
+        .start()
+        .then(() => {
+          setConnected(true);
+          return connection.invoke("Subscribe", projectId, service ?? null);
+        })
+        .catch(() => {});
+
+      return () => {
+        connection.stop();
+      };
+    }
+
     // WS manda o backlog inteiro do ring buffer assim que conecta — não precisa de fetch REST separado.
     const ws = new WebSocket(api.wsUrl(config, projectId, service));
     ws.onopen = () => setConnected(true);
@@ -193,7 +230,7 @@ const LogStream = forwardRef<
       ws.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.baseUrl, config.token, projectId, service]);
+  }, [config.baseUrl, config.token, config.kind, projectId, service]);
 
   useImperativeHandle(ref, () => ({
     // só limpa o que tá exibido no front — o ring buffer do backend não é afetado.

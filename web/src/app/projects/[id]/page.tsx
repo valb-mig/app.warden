@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, ApiError, type GitInfo, type ProjectStatus } from "@/lib/api";
+import { api, ApiError, type BackendKind, type GitInfo, type ProjectStatus } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 
 const STATUS_POLL_MS = 3000;
@@ -38,19 +38,28 @@ export default function ProjectDetail() {
 
   if (!settings) return <ConnectCard />;
 
-  return <ProjectDetailContent baseUrl={settings.baseUrl} token={settings.token} projectId={projectId} />;
+  return (
+    <ProjectDetailContent
+      baseUrl={settings.baseUrl}
+      token={settings.token}
+      kind={settings.kind}
+      projectId={projectId}
+    />
+  );
 }
 
 function ProjectDetailContent({
   baseUrl,
   token,
+  kind,
   projectId,
 }: {
   baseUrl: string;
   token: string;
+  kind: BackendKind;
   projectId: string;
 }) {
-  const config = { baseUrl, token };
+  const config = { baseUrl, token, kind };
   const [status, setStatus] = useState<ProjectStatus | null>(null);
   const [git, setGit] = useState<GitInfo | null>(null);
   const [pending, setPending] = useState(false);
