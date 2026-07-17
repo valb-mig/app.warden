@@ -1,14 +1,14 @@
 using System.Diagnostics;
 using System.Net;
 
-namespace Warden.Ator.Transport;
+namespace Warden.Agent.Transport;
 
 /// <summary>
 /// Resolve o IP Tailscale via `tailscale ip -4` (shell out — mesma filosofia já usada pro Docker
 /// CLI, sem SDK/`tsnet` embutido; ver NEW_CONTEXT.md §7). Sem tailscaled rodando ou fora da tailnet,
-/// o Ator não sobe — não existe fallback pra bind wildcard/loopback.
+/// o Agent não sobe — não existe fallback pra bind wildcard/loopback.
 /// </summary>
-public sealed class TailscaleTransport(string tailscaleCommand = "tailscale") : IPlateiaTransport
+public sealed class TailscaleTransport(string tailscaleCommand = "tailscale") : IConsoleTransport
 {
     public IPEndPoint ResolveEndpoint(int port) => new(ResolveTailscaleIp(), port);
 
@@ -32,7 +32,7 @@ public sealed class TailscaleTransport(string tailscaleCommand = "tailscale") : 
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
         {
             throw new TailscaleUnavailableException(
-                $"comando \"{tailscaleCommand}\" não encontrado — o Ator não sobe sem o Tailscale ativo", ex);
+                $"comando \"{tailscaleCommand}\" não encontrado — o Agent não sobe sem o Tailscale ativo", ex);
         }
 
         var stdout = process.StandardOutput.ReadToEnd();

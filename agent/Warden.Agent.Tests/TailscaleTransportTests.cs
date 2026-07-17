@@ -1,7 +1,7 @@
-using Warden.Ator.Transport;
+using Warden.Agent.Transport;
 using Xunit;
 
-namespace Warden.Ator.Tests;
+namespace Warden.Agent.Tests;
 
 /// <summary>
 /// Testa contra o `tailscale` real desta máquina (está na tailnet, ver `just boot`) — mesma

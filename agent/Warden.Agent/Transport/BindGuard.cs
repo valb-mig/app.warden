@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Warden.Ator.Transport;
+namespace Warden.Agent.Transport;
 
 /// <summary>
 /// Defesa em profundidade (cinto e suspensório) além do <see cref="TailscaleTransport"/>: depois do
@@ -15,7 +15,7 @@ public static class BindGuard
         if (boundAddresses.Count != 1)
         {
             throw new BindAssertionException(
-                $"esperava exatamente 1 endereço de bind pra Plateia, achou {boundAddresses.Count}: " +
+                $"esperava exatamente 1 endereço de bind pro Console, achou {boundAddresses.Count}: " +
                 string.Join(", ", boundAddresses));
         }
 

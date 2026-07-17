@@ -12,8 +12,8 @@ web/.next/
 web/out/
 
 # dotnet
-ator/**/bin/
-ator/**/obj/
+agent/**/bin/
+agent/**/obj/
 
 # local runtime
 *.db

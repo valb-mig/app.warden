@@ -1,8 +1,8 @@
 using System.Net;
-using Warden.Ator.Transport;
+using Warden.Agent.Transport;
 using Xunit;
 
-namespace Warden.Ator.Tests;
+namespace Warden.Agent.Tests;
 
 public sealed class BindGuardTests
 {

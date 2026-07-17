@@ -1,6 +1,6 @@
 namespace Warden.Domain.Trust;
 
-/// <summary>Um botão exposto pra Plateia: nome de exibição + argv exato + cwd, já resolvidos.</summary>
+/// <summary>Um botão exposto pro Console: nome de exibição + argv exato + cwd, já resolvidos.</summary>
 public sealed record ManifestCommand
 {
     public required string Name { get; init; }
