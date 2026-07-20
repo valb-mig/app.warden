@@ -1,0 +1,14 @@
+[Unit]
+Description=Warden Agent (daemon local dos projetos)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/warden/agent/Warden.Agent
+WorkingDirectory=%h/.local/share/warden/agent
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

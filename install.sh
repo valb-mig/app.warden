@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Instala o Warden numa máquina nova: clona o repo, instala uv/pnpm se faltar,
-# sincroniza as deps do engine e do front.
+# Instala o Warden numa máquina nova: clona o repo, instala pnpm se faltar,
+# sincroniza as deps do front (o Agent/Admin em C# usam o .NET SDK já instalado na máquina).
 #
 # Uso:
 #   curl -fsSL https://raw.githubusercontent.com/valb-mig/app.warden/main/install.sh | bash
@@ -40,12 +40,6 @@ fi
 
 cd "$INSTALL_DIR"
 
-if ! command -v uv >/dev/null 2>&1; then
-    info "uv não encontrado, instalando..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$PATH"
-fi
-
 if ! command -v pnpm >/dev/null 2>&1; then
     info "pnpm não encontrado, instalando..."
     curl -fsSL https://get.pnpm.io/install.sh | sh -
@@ -53,12 +47,13 @@ if ! command -v pnpm >/dev/null 2>&1; then
 fi
 
 command -v just >/dev/null 2>&1 || die "just não encontrado. Instale antes de continuar: https://github.com/casey/just#installation"
-
-info "Instalando deps do engine (uv sync)..."
-(cd engine && uv sync)
+command -v dotnet >/dev/null 2>&1 || die ".NET SDK não encontrado. Instale antes de continuar: https://dotnet.microsoft.com/download"
 
 info "Instalando deps do front (pnpm install)..."
 (cd web && pnpm install)
+
+info "Restaurando deps do Agent/Admin (dotnet restore)..."
+(cd agent && dotnet restore)
 
 printf '%s\n' "${g}────────────────────────${r}"
 info "instalado. próximo passo:"

@@ -1,25 +1,5 @@
 set shell := ["bash", "-cu"]
 
-# instala deps do engine (python)
-sync:
-    cd engine && uv sync
-
-# roda testes do engine
-test:
-    cd engine && uv run pytest
-
-# lint + format check do engine
-lint:
-    cd engine && uv run ruff check .
-
-# format do engine
-fmt:
-    cd engine && uv run ruff format .
-
-# CLI do warden (fase 2 em diante)
-cli *args:
-    cd engine && uv run warden {{args}}
-
 # instala deps do front
 web-sync:
     cd web && pnpm install
@@ -52,7 +32,23 @@ dotnet-agent:
 dotnet-admin:
     cd agent && dotnet run --project Warden.Admin
 
-# imprime os comandos pra subir engine + front (um em cada terminal) e o link de acesso (local/LAN/tailscale)
+# instala Agent (systemd --user, sobe sozinho) + Admin (autostart de login) — Linux/systemd only
+service-install:
+    ./scripts/install-service.sh
+
+# remove o serviço do Agent e o autostart do Admin (não mexe em ~/.warden)
+service-uninstall:
+    ./scripts/uninstall-service.sh
+
+# status do serviço do Agent
+service-status:
+    systemctl --user status warden-agent.service
+
+# segue os logs do Agent (journald)
+service-logs:
+    journalctl --user -u warden-agent.service -f
+
+# imprime os comandos pra subir Agent + front (um em cada terminal) e o link de acesso (local/LAN/tailscale)
 boot:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -68,8 +64,11 @@ boot:
     echo
     printf '%s\n' "${d}roda cada comando num terminal separado${r}"
     echo
-    printf '%s\n' "  ${g}\$${r} just cli serve --host 0.0.0.0"
+    printf '%s\n' "  ${g}\$${r} just dotnet-agent"
     printf '%s\n' "  ${g}\$${r} just web-dev"
+    echo
+    printf '%s\n' "${d}opcional, admin local (aprovar projetos, editar config, tray)${r}"
+    printf '%s\n' "  ${g}\$${r} just dotnet-admin"
     echo
     printf '%s\n' "${d}acesso${r}"
     printf '%s\n' "  ${d}local       ${r}${c}http://localhost:${web_port}${r}"

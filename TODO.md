@@ -1,3 +1,5 @@
+> **Documento histórico.** As decisões abaixo (numeradas) guiaram o MVP original em Python (`engine/`), removido do repo após a migração pra C# (`agent/`) alcançar paridade total de features. Elas continuam válidas como registro do *porquê* de cada escolha de design (allowlist de git, formato de token escopado, etc.) e o C# as segue à risca — só o motor que as implementa mudou de linguagem. A fonte da verdade da arquitetura corrente é **[NEW_CONTEXT.md](NEW_CONTEXT.md)**.
+
 # Warden (do Valb) — TODO / Arquitetura
 
 > Histórico de nome: MasterHub → MegaHub → **Warden**.
