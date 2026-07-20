@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             x:Class="Warden.Admin.Views.HistoryCardView"
+             x:DataType="vm:HistoryViewModel">
+    <Border Classes="card">
+        <StackPanel Spacing="10">
+            <TextBlock Text="Histórico" Classes="card-title" />
+
+            <TextBlock Text="falha ao carregar histórico" Classes="muted" IsVisible="{Binding Failed}" />
+            <TextBlock Text="sem eventos ainda" Classes="muted" IsVisible="{Binding ShowEmptyState}" />
+
+            <ItemsControl ItemsSource="{Binding Events}" IsVisible="{Binding HasEvents}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:HistoryRowViewModel">
+                        <Grid ColumnDefinitions="130,90,*" Margin="0,3">
+                            <TextBlock Text="{Binding When}" Classes="muted" FontFamily="monospace" FontSize="11" />
+                            <Border Grid.Column="1" Classes="badge" HorizontalAlignment="Left"
+                                    Classes.badge-success="{Binding IsStarted}"
+                                    Classes.badge-muted="{Binding IsStopped}"
+                                    Classes.badge-outline="{Binding IsFinished}"
+                                    Classes.badge-danger="{Binding IsDanger}">
+                                <TextBlock Text="{Binding Type}" />
+                            </Border>
+                            <TextBlock Grid.Column="2" Text="{Binding Message}" FontFamily="monospace" FontSize="11"
+                                       Classes="muted" TextWrapping="Wrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -1,6 +1,12 @@
-namespace Warden.Agent.Api;
+namespace Warden.Contracts.Projects;
 
-/// <summary>DTOs da API REST — casing JSON é snake_case (configurado no Program.cs), mesmo contrato do FastAPI atual.</summary>
+/// <summary>
+/// DTOs da API REST de projeto/sistema — casing JSON é snake_case (configurado nos consumidores),
+/// mesmo contrato do FastAPI atual. Vivem em Warden.Contracts (não em Warden.Agent) porque
+/// Warden.Admin também fala esses tipos diretamente com o Agent pelo socket unix (as rotas
+/// `/projects`/`/system` não são filtradas pra unix-socket-only, só `/admin` é — ver Program.cs),
+/// então Agent e Admin compartilham o mesmo shape sem duplicar registros.
+/// </summary>
 public sealed record ProjectDto
 {
     public required string Id { get; init; }
@@ -76,6 +82,24 @@ public sealed record GitCommandResultDto
     public required int ExitCode { get; init; }
     public required string Output { get; init; }
     public required bool Refused { get; init; }
+}
+
+public sealed record HistoryEventDto
+{
+    public required string ProjectId { get; init; }
+    public required string Type { get; init; }
+    public required string Message { get; init; }
+    public required string CreatedAt { get; init; }
+}
+
+public sealed record ActionAuditDto
+{
+    public required string ProjectId { get; init; }
+    public required string ActionName { get; init; }
+    public required IReadOnlyList<string> Cmd { get; init; }
+    public required bool Confirmed { get; init; }
+    public required int ExitCode { get; init; }
+    public required string CreatedAt { get; init; }
 }
 
 public sealed record SystemVitalsDto

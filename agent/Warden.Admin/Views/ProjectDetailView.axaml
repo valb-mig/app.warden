@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             xmlns:views="using:Warden.Admin.Views"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="800"
+             x:Class="Warden.Admin.Views.ProjectDetailView"
+             x:DataType="vm:ProjectDetailViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,4,0">
+
+            <Button Content="← Voltar" Command="{Binding BackCommand}" Background="Transparent" Padding="0" HorizontalAlignment="Left" />
+
+            <Border Classes="card">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding ProjectId}" FontFamily="monospace" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding LanguagesText}" Classes="muted" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                            <Border Classes="badge badge-danger" IsVisible="{Binding IsOutdated}">
+                                <TextBlock Text="desatualizado" />
+                            </Border>
+                            <Border Classes="badge" Classes.badge-success="{Binding Running}" Classes.badge-muted="{Binding !Running}">
+                                <TextBlock Text="{Binding RunningLabel}" />
+                            </Border>
+                            <Button Content="⚙" ToolTip.Tip="Editar config" Command="{Binding EditConfigCommand}" Padding="6,2" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="24">
+                        <TextBlock Classes="muted"><Run Text="PID: " /><Run Text="{Binding Status.Pid}" /></TextBlock>
+                        <TextBlock Classes="muted"><Run Text="Portas: " /><Run Text="{Binding PortsText}" /></TextBlock>
+                        <TextBlock Classes="muted"><Run Text="Uptime: " /><Run Text="{Binding UptimeText}" /></TextBlock>
+                        <Button Content="{Binding ToggleLabel}" Command="{Binding ToggleCommand}"
+                                Classes.danger="{Binding Running}" HorizontalAlignment="Right" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <views:VitalsChartView DataContext="{Binding Vitals}" />
+            <views:GitCardView DataContext="{Binding GitCard}" />
+            <views:ActionsCardView DataContext="{Binding ActionsCard}" />
+            <views:LogViewerView DataContext="{Binding LogViewer}" />
+            <views:HistoryCardView DataContext="{Binding History}" />
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

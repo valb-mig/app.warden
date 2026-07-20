@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             xmlns:conv="using:Warden.Admin.Converters"
+             mc:Ignorable="d" d:DesignWidth="600"
+             x:Class="Warden.Admin.Views.GitCardView"
+             x:DataType="vm:GitCardViewModel"
+             IsVisible="{Binding IsVisible}">
+    <Border Classes="card">
+        <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Text="{Binding Info.Branch}" FontFamily="monospace" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                    <Border Classes="badge badge-danger" IsVisible="{Binding Info.Behind, Converter={x:Static conv:IntPositiveConverter.Instance}}">
+                        <TextBlock Text="{Binding Info.Behind, StringFormat='↓ {0}'}" />
+                    </Border>
+                    <Border Classes="badge badge-outline" IsVisible="{Binding Info.Ahead, Converter={x:Static conv:IntPositiveConverter.Instance}}">
+                        <TextBlock Text="{Binding Info.Ahead, StringFormat='↑ {0}'}" />
+                    </Border>
+                    <Border Classes="badge badge-muted" IsVisible="{Binding Info.Dirty}">
+                        <TextBlock Text="{Binding Info.DirtyCount, StringFormat='sujo ({0})'}" />
+                    </Border>
+                    <Border Classes="badge badge-outline" IsVisible="{Binding !Info.Dirty}">
+                        <TextBlock Text="limpo" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Info.HasRemote}">
+                <Button Content="Sync" Command="{Binding SyncCommand}" Classes="accent" />
+                <Button Content="Fetch" Command="{Binding FetchCommand}" />
+                <Button Content="Pull" Command="{Binding PullCommand}" />
+                <Button Content="Push" Command="{Binding PushCommand}" />
+                <TextBlock Text="{Binding PendingVerb, StringFormat='rodando {0}...'}"
+                           IsVisible="{Binding PendingVerb, Converter={x:Static conv:IsNotNullConverter.Instance}}"
+                           VerticalAlignment="Center" Classes="muted" />
+            </StackPanel>
+            <TextBlock Text="sem remote configurado" Classes="muted" IsVisible="{Binding !Info.HasRemote}" />
+
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Info.LastCommit, Converter={x:Static conv:IsNotNullConverter.Instance}}">
+                <TextBlock Text="{Binding Info.LastCommit.Subject}" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+                <TextBlock Classes="muted">
+                    <Run Text="{Binding Info.LastCommit.Hash}" FontFamily="monospace" />
+                    <Run Text=" · " />
+                    <Run Text="{Binding Info.LastCommit.Author}" />
+                    <Run Text=" · " />
+                    <Run Text="{Binding Info.LastCommit.Relative}" />
+                </TextBlock>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

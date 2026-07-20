@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Warden.Agent.Api;
+using Warden.Contracts.Projects;
 using Xunit;
 
 namespace Warden.Agent.Tests;

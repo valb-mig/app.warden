@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="700"
+             x:Class="Warden.Admin.Views.SystemVitalsCardView"
+             x:DataType="vm:SystemVitalsViewModel"
+             IsVisible="{Binding HasData}">
+    <Border Classes="card">
+        <StackPanel Spacing="10">
+            <TextBlock Text="Máquina" Classes="card-title" />
+            <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="CPU" Classes="muted" />
+                        <TextBlock Grid.Column="1" Text="{Binding CpuPercent, StringFormat='{}{0:F0}%'}" FontWeight="SemiBold" />
+                    </Grid>
+                    <ProgressBar Value="{Binding CpuPercent}" Minimum="0" Maximum="100" Height="6" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4" Margin="16,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="RAM" Classes="muted" />
+                        <TextBlock Grid.Column="1" Text="{Binding MemoryPercent, StringFormat='{}{0:F0}%'}" FontWeight="SemiBold" />
+                    </Grid>
+                    <ProgressBar Value="{Binding MemoryPercent}" Minimum="0" Maximum="100" Height="6" />
+                    <TextBlock Text="{Binding MemoryDetail}" Classes="muted" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="Disco" Classes="muted" />
+                        <TextBlock Grid.Column="1" Text="{Binding DiskPercent, StringFormat='{}{0:F0}%'}" FontWeight="SemiBold" />
+                    </Grid>
+                    <ProgressBar Value="{Binding DiskPercent}" Minimum="0" Maximum="100" Height="6" />
+                    <TextBlock Text="{Binding DiskDetail}" Classes="muted" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

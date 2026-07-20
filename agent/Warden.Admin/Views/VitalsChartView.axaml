@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="600"
+             x:Class="Warden.Admin.Views.VitalsChartView"
+             x:DataType="vm:VitalsChartViewModel"
+             IsVisible="{Binding HasEnoughData}">
+    <Border Classes="card">
+        <StackPanel Spacing="10">
+            <TextBlock Text="Vitals" Classes="card-title" />
+            <Grid ColumnDefinitions="*,*">
+                <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="CPU" Classes="muted" />
+                        <TextBlock Grid.Column="1" Text="{Binding CurrentCpu, StringFormat='{}{0:F0}%'}" FontWeight="SemiBold" />
+                    </Grid>
+                    <Polyline Points="{Binding CpuPoints}" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                              StrokeThickness="2" Height="56" Stretch="Fill" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="4" Margin="24,0,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="RAM" Classes="muted" />
+                        <TextBlock Grid.Column="1" Text="{Binding CurrentMem, StringFormat='{}{0:F0} MB'}" FontWeight="SemiBold" />
+                    </Grid>
+                    <Polyline Points="{Binding MemPoints}" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                              StrokeThickness="2" Height="56" Stretch="Fill" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>
