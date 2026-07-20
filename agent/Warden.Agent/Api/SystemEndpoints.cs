@@ -1,3 +1,4 @@
+using Warden.Contracts.Projects;
 using Warden.Domain;
 
 namespace Warden.Agent.Api;

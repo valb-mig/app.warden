@@ -11,12 +11,17 @@ public sealed class Registry
 {
     private const string ProjectsDirName = "projects";
 
+    public string ConfigDir { get; }
+    public string ProjectsDir { get; }
+
     private readonly string _projectsDir;
     private readonly Dictionary<string, ProjectConfig> _projects = new();
 
     public Registry(string configDir)
     {
+        ConfigDir = configDir;
         _projectsDir = Path.Combine(configDir, ProjectsDirName);
+        ProjectsDir = _projectsDir;
     }
 
     public void Load()
