@@ -10,7 +10,9 @@ using Warden.Agent.Hubs;
 using Warden.Agent.Transport;
 using Warden.Domain;
 using Warden.Domain.Config;
+using Warden.Domain.Events;
 using Warden.Domain.Git;
+using Warden.Domain.Notify;
 using Warden.Domain.Trust;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,9 +30,12 @@ var globalConfig = ConfigLoader.LoadGlobalConfig(globalConfigPath);
 var apiPort = builder.Configuration.GetValue<int?>("ApiPort") ?? globalConfig.ApiPort;
 
 var registry = new Registry(configDir);
-var trustStore = new SqliteTrustStore(Path.Combine(configDir, "warden.db"));
+var dbPath = Path.Combine(configDir, "warden.db");
+var trustStore = new SqliteTrustStore(dbPath);
 var manifestRegistry = new ManifestRegistry(trustStore);
-var engine = new Engine(registry, manifestRegistry);
+var eventStore = new SqliteEventStore(dbPath);
+var notifier = NotifierFactory.Create(globalConfig);
+var engine = new Engine(registry, manifestRegistry, eventStore, notifier);
 engine.Boot();
 
 var apiToken = TokenStore.LoadOrCreate(Path.Combine(configDir, "api_token"));
@@ -75,6 +80,8 @@ if (adminSocketPath is not null)
 }
 
 var app = builder.Build();
+
+app.Lifetime.ApplicationStopping.Register(engine.Shutdown);
 
 if (adminSocketPath is not null)
 {
@@ -124,6 +131,7 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
         ActionInteractiveException => (StatusCodes.Status400BadRequest, error.Message),
         GitVerbNotSupportedException => (StatusCodes.Status400BadRequest, error.Message),
         ConfirmationRequiredException => (StatusCodes.Status409Conflict, error.Message),
+        DirectoryNotFoundException => (StatusCodes.Status400BadRequest, error.Message),
         _ => (StatusCodes.Status500InternalServerError, "erro interno"),
     };
     context.Response.StatusCode = status;
@@ -137,21 +145,19 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => Results.Ok(new { service = "warden-agent", status = "ok" }));
 
-app.MapGroup("/projects")
-    .AddEndpointFilter(async (context, next) =>
-    {
-        var header = context.HttpContext.Request.Headers.Authorization.ToString();
-        return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
-    })
-    .MapProjectEndpoints();
+async ValueTask<object?> RequireToken(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+{
+    var header = context.HttpContext.Request.Headers.Authorization.ToString();
+    return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
+}
 
-app.MapGroup("/system")
-    .AddEndpointFilter(async (context, next) =>
-    {
-        var header = context.HttpContext.Request.Headers.Authorization.ToString();
-        return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
-    })
-    .MapSystemEndpoints();
+app.MapGroup("/projects").AddEndpointFilter(RequireToken).MapProjectEndpoints();
+app.MapGroup("/system").AddEndpointFilter(RequireToken).MapSystemEndpoints();
+
+// Descoberta/sincronização (scan-paths/discover/browse) — mesma superfície pública que /projects e
+// /system (não é /admin), protegida pelo mesmo token: o Console/front já chama essas rotas contra o
+// engine Python, o contrato precisa bater 1:1 pro machine-switcher poder trocar de engine.
+app.MapGroup("").AddEndpointFilter(RequireToken).MapDiscoveryEndpoints();
 
 app.MapHub<LogsHub>("/hubs/logs");
 

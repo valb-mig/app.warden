@@ -2,41 +2,33 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="480"
+        xmlns:vm="using:Warden.Admin.ViewModels"
+        xmlns:conv="using:Warden.Admin.Converters"
+        mc:Ignorable="d" d:DesignWidth="980" d:DesignHeight="680"
         x:Class="Warden.Admin.MainWindow"
-        Width="640" Height="480"
+        x:DataType="vm:ShellViewModel"
+        Width="980" Height="680" MinWidth="720" MinHeight="480"
         Title="Warden Admin">
-    <TabControl>
-        <TabItem Header="Projetos">
-            <DockPanel Margin="12">
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-                    <Button Name="RefreshProjectsButton" Content="Atualizar" Click="OnRefreshProjectsClick" />
-                    <TextBlock Name="ProjectsStatusText" VerticalAlignment="Center" />
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <Border Grid.Row="0" Padding="16,10" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <Button Content="Projetos" Command="{Binding ShowDashboardCommand}" />
+                    <Button Content="Configurações" Command="{Binding ShowSettingsCommand}" />
                 </StackPanel>
-                <ScrollViewer>
-                    <StackPanel Name="ProjectsPanel" Spacing="8" />
-                </ScrollViewer>
-            </DockPanel>
-        </TabItem>
-        <TabItem Header="Configuração">
-            <StackPanel Margin="12" Spacing="6">
-                <TextBlock Text="Canal de notificação" />
-                <ComboBox Name="NotifyChannelCombo" SelectedIndex="0">
-                    <ComboBoxItem Content="none" />
-                    <ComboBoxItem Content="ntfy" />
-                </ComboBox>
-                <TextBlock Text="Tópico ntfy" />
-                <TextBox Name="NtfyTopicBox" />
-                <TextBlock Text="Servidor ntfy" />
-                <TextBox Name="NtfyServerBox" />
-                <TextBlock Text="Pastas de descoberta (uma por linha)" />
-                <TextBox Name="ScanPathsBox" AcceptsReturn="True" Height="100" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Salvar" Click="OnSaveConfigClick" />
-                    <Button Content="Recarregar" Click="OnReloadConfigClick" />
-                </StackPanel>
-                <TextBlock Name="ConfigStatusText" />
-            </StackPanel>
-        </TabItem>
-    </TabControl>
+                <TextBlock Grid.Column="1" Text="Warden Admin" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" FontWeight="Bold" Opacity="0.5" />
+            </Grid>
+        </Border>
+
+        <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" Margin="20" />
+
+        <Border Grid.Row="2" Padding="12,8"
+                Background="{Binding ToastIsError, Converter={x:Static conv:ToastColorConverter.Instance}}"
+                IsVisible="{Binding ToastMessage, Converter={x:Static conv:IsNotNullOrEmptyConverter.Instance}}">
+            <TextBlock Text="{Binding ToastMessage}" Foreground="White" HorizontalAlignment="Center" />
+        </Border>
+    </Grid>
 </Window>

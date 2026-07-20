@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             xmlns:views="using:Warden.Admin.Views"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="Warden.Admin.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,4,0">
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel>
+                    <TextBlock Text="Projetos" FontSize="20" FontWeight="Bold" />
+                    <TextBlock Text="Hub local de supervisão de processos e containers" Classes="muted" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Classes="badge badge-success">
+                        <TextBlock Text="{Binding RunningCount, StringFormat='{}{0} rodando'}" />
+                    </Border>
+                    <Button Content="Sincronizar" Command="{Binding OpenSyncCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <views:SystemVitalsCardView DataContext="{Binding SystemVitals}" />
+
+            <Border Classes="card" Background="#2A1414" BorderBrush="#7A2E2E" IsVisible="{Binding HasAttentionItems}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Precisa de atenção" FontWeight="Bold" Foreground="#F87171" />
+                    <ItemsControl ItemsSource="{Binding AttentionItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AttentionItemViewModel">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                    <Button Content="{Binding Label}" Command="{Binding OpenCommand}"
+                                            Background="Transparent" HorizontalContentAlignment="Left" Padding="0" />
+                                    <Button Grid.Column="1" Content="✕" Command="{Binding DismissCommand}"
+                                            Background="Transparent" Padding="4,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <TextBox Text="{Binding SearchQuery}" PlaceholderText="buscar projeto..." Width="280" HorizontalAlignment="Left" />
+
+            <Border Classes="card" Background="#2A1414" BorderBrush="#7A2E2E" IsVisible="{Binding HasErrorMessage}">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#F87171" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="Tentar de novo" Command="{Binding ReloadCommand}" />
+                </Grid>
+            </Border>
+
+            <TextBlock Text="carregando..." Classes="muted" IsVisible="{Binding IsLoading}" />
+
+            <Border Classes="card" IsVisible="{Binding HasProjects}">
+                <StackPanel>
+                    <Grid ColumnDefinitions="2*,80,90,110,70,140" Margin="4,0,4,8">
+                        <TextBlock Text="Projeto" Classes="muted" />
+                        <TextBlock Grid.Column="1" Text="Tipo" Classes="muted" />
+                        <TextBlock Grid.Column="2" Text="Status" Classes="muted" />
+                        <TextBlock Grid.Column="3" Text="Git" Classes="muted" />
+                        <TextBlock Grid.Column="4" Text="Portas" Classes="muted" />
+                        <TextBlock Grid.Column="5" Text="Ações" Classes="muted" HorizontalAlignment="Right" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding FilteredProjects}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProjectRowViewModel">
+                                <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" Padding="4,10">
+                                    <Grid ColumnDefinitions="2*,80,90,110,70,140">
+                                        <StackPanel VerticalAlignment="Center">
+                                            <Button Content="{Binding Name}" Command="{Binding OpenCommand}"
+                                                    Background="Transparent" Padding="0" HorizontalContentAlignment="Left" FontWeight="Medium" />
+                                            <TextBlock Text="{Binding Group}" Classes="muted" IsVisible="{Binding HasGroup}" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Classes="badge badge-outline" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Type}" />
+                                        </Border>
+                                        <Border Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                Classes="badge" Classes.badge-success="{Binding Running}" Classes.badge-muted="{Binding !Running}">
+                                            <TextBlock Text="{Binding RunningLabel}" />
+                                        </Border>
+                                        <Border Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                Classes="badge"
+                                                Classes.badge-danger="{Binding IsGitDirty}"
+                                                Classes.badge-warning="{Binding IsGitBehind}"
+                                                Classes.badge-outline="{Binding IsGitClean}">
+                                            <TextBlock Text="{Binding GitLabel}" />
+                                        </Border>
+                                        <TextBlock Grid.Column="4" Text="{Binding PortsText}" VerticalAlignment="Center" Classes="muted" />
+                                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Button Content="Aprovar" Command="{Binding ApproveCommand}" IsVisible="{Binding NeedsApproval}" Classes="accent" />
+                                            <Button Content="{Binding ToggleLabel}" Command="{Binding ToggleCommand}"
+                                                    IsVisible="{Binding !NeedsApproval}" Classes.danger="{Binding Running}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

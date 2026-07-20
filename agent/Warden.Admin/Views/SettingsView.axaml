@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+             x:Class="Warden.Admin.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <StackPanel Spacing="16" MaxWidth="480" HorizontalAlignment="Left">
+        <TextBlock Text="Configurações" FontSize="20" FontWeight="Bold" />
+        <TextBlock Text="Config global do Agent (~/.warden/config.toml)" Classes="muted" />
+
+        <Border Classes="card">
+            <StackPanel Spacing="12">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Canal de notificação" Classes="card-title" />
+                    <ComboBox ItemsSource="{x:Static vm:SettingsViewModel.NotifyChannels}"
+                              SelectedItem="{Binding NotifyChannel}" HorizontalAlignment="Stretch" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Tópico ntfy" Classes="card-title" />
+                    <TextBox Text="{Binding NtfyTopic}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Servidor ntfy" Classes="card-title" />
+                    <TextBox Text="{Binding NtfyServer}" />
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Pastas de descoberta (uma por linha)" Classes="card-title" />
+                    <TextBlock Text="Sincronização automática (Sync/discover) ainda não portada — edite manualmente por enquanto." Classes="muted" TextWrapping="Wrap" />
+                    <TextBox Text="{Binding ScanPathsText}" AcceptsReturn="True" Height="100" FontFamily="monospace" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Salvar" Command="{Binding SaveCommand}" Classes="accent" IsEnabled="{Binding !IsSaving}" />
+                    <Button Content="Recarregar" Command="{Binding LoadCommand}" IsEnabled="{Binding !IsLoading}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

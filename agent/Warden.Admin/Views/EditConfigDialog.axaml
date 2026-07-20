@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Warden.Admin.ViewModels"
+        xmlns:conv="using:Warden.Admin.Converters"
+        x:Class="Warden.Admin.Views.EditConfigDialog"
+        x:DataType="vm:EditConfigViewModel"
+        Width="480" Height="620"
+        WindowStartupLocation="CenterOwner"
+        Title="Configurar projeto">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Name="CancelButton" Content="Cancelar" Click="OnCancelClick" />
+            <Button Name="SaveButton" Content="Salvar" Click="OnSaveClick" Classes="accent" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Top" Text="{Binding ErrorMessage}" Foreground="#F87171"
+                   IsVisible="{Binding ErrorMessage, Converter={x:Static conv:IsNotNullOrEmptyConverter.Instance}}" Margin="0,0,0,8" />
+
+        <TextBlock Text="carregando..." Classes="muted" IsVisible="{Binding Loading}" />
+
+        <ScrollViewer IsVisible="{Binding !Loading}">
+            <StackPanel Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Classes="badge badge-outline"><TextBlock Text="{Binding TypeLabel}" /></Border>
+                    <TextBlock Text="{Binding PathLabel}" Classes="muted" FontFamily="monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="id" Classes="muted" FontSize="11" />
+                        <TextBlock Text="{Binding ProjectId}" FontFamily="monospace" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock Text="grupo" Classes="muted" FontSize="11" />
+                        <TextBox Text="{Binding Group}" PlaceholderText="opcional" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Spacing="4" IsVisible="{Binding HasStart}">
+                    <TextBlock Text="comando de start" Classes="muted" FontSize="11" />
+                    <TextBox Text="{Binding StartCmdText}" FontFamily="monospace" />
+                </StackPanel>
+
+                <StackPanel Spacing="6" IsVisible="{Binding HasLogSources}">
+                    <TextBlock Text="log sources" Classes="muted" FontSize="11" />
+                    <ItemsControl ItemsSource="{Binding LogSources}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EditLogSourceItemViewModel">
+                                <Button Content="{Binding Label}" Command="{Binding ToggleCommand}"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                        Margin="0,2" Classes.accent="{Binding !Removed}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="6" IsVisible="{Binding HasActions}">
+                    <TextBlock Text="actions" Classes="muted" FontSize="11" />
+                    <ItemsControl ItemsSource="{Binding Actions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EditActionItemViewModel">
+                                <StackPanel Spacing="4" Margin="0,4">
+                                    <Button Content="{Binding Name}" Command="{Binding ToggleCommand}"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                            Classes.accent="{Binding !Removed}" />
+                                    <TextBox Text="{Binding CmdText}" FontFamily="monospace" FontSize="11" IsEnabled="{Binding !Removed}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Warden.Admin.ViewModels"
+        xmlns:conv="using:Warden.Admin.Converters"
+        x:Class="Warden.Admin.Views.SyncWindow"
+        x:DataType="vm:SyncViewModel"
+        Width="560" Height="620"
+        WindowStartupLocation="CenterOwner"
+        Title="Sincronizar projetos">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Fechar" Click="OnCloseClick" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Top" Text="{Binding ErrorMessage}" Foreground="#F87171"
+                   IsVisible="{Binding ErrorMessage, Converter={x:Static conv:IsNotNullOrEmptyConverter.Instance}}" Margin="0,0,0,8" />
+
+        <StackPanel Spacing="16">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="Pastas de descoberta" Classes="card-title" />
+                    <Button Grid.Column="1" Content="+ Adicionar pasta" Command="{Binding AddScanPathCommand}" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding ScanPaths}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock Text="{Binding}" FontFamily="monospace" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1" Content="Remover" Tag="{Binding}" Click="OnRemoveScanPathClick" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="nenhuma pasta configurada ainda" Classes="muted" IsVisible="{Binding !HasScanPaths}" />
+            </StackPanel>
+
+            <Separator />
+
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="Projetos descobertos" Classes="card-title" />
+                    <Button Grid.Column="1" Content="Atualizar" Command="{Binding RefreshDiscoveredCommand}" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Discovered}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DiscoveredProjectViewModel">
+                            <Border Classes="card" Margin="0,4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontWeight="Medium" />
+                                        <TextBlock Text="{Binding Path}" Classes="muted" FontSize="10.5" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Border Classes="badge badge-outline"><TextBlock Text="{Binding Type}" /></Border>
+                                        <Button Content="Registrado" IsEnabled="False" IsVisible="{Binding IsRegistered}" />
+                                        <Button Content="Registrar" Command="{Binding RegisterCommand}" IsVisible="{Binding !IsRegistered}" Classes="accent" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="nenhum projeto novo encontrado nas pastas configuradas" Classes="muted" IsVisible="{Binding !HasDiscovered}" />
+            </StackPanel>
+        </StackPanel>
+    </DockPanel>
+</Window>

@@ -1,0 +1,87 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Vocabulário visual mínimo compartilhado pelas telas — cards, badges de status e botão de
+        risco (stop/destrutivo). Não é um design system completo, só o suficiente pra Dashboard,
+        ProjectDetail e Settings pareceram a mesma ferramenta em vez de três telas soltas.
+    -->
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="TextBlock.card-title">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+        <Setter Property="Opacity" Value="0.65" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="Border.badge">
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="Padding" Value="8,2" />
+    </Style>
+    <Style Selector="Border.badge TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <Style Selector="Border.badge-success">
+        <Setter Property="Background" Value="#1F8A4C" />
+    </Style>
+    <Style Selector="Border.badge-success TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Border.badge-muted">
+        <Setter Property="Background" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+    </Style>
+
+    <Style Selector="Border.badge-danger">
+        <Setter Property="Background" Value="#C4362D" />
+    </Style>
+    <Style Selector="Border.badge-danger TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Border.badge-warning">
+        <Setter Property="Background" Value="#B7791F" />
+    </Style>
+    <Style Selector="Border.badge-warning TextBlock">
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Border.badge-outline">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="#C4362D" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#A82E26" />
+    </Style>
+
+    <Style Selector="Border.terminal">
+        <Setter Property="Background" Value="#0A0A0F" />
+        <Setter Property="BorderBrush" Value="#27272A" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="TextBlock.terminal-text">
+        <Setter Property="FontFamily" Value="monospace" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Foreground" Value="#D4D4D8" />
+    </Style>
+</Styles>

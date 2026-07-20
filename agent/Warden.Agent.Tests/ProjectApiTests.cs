@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Warden.Agent.Api;
+using Warden.Contracts.Projects;
 using Warden.Domain;
 using Xunit;
 

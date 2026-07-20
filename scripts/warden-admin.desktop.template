@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Warden Admin
+Comment=Aprovar projetos, editar config e monitorar o Agent do Warden
+Exec=@HOME@/.local/share/warden/admin/Warden.Admin
+Terminal=false
+X-GNOME-Autostart-enabled=true

@@ -1,8 +1,10 @@
+> **Documento histórico.** Este arquivo descreve o design original do MVP em Python (`engine/`), hoje aposentado — a migração pra C# (`agent/`) chegou à paridade total de features e o engine Python foi removido do repo. A fonte da verdade da arquitetura corrente é **[NEW_CONTEXT.md](NEW_CONTEXT.md)**. Mantido como referência do raciocínio de design que motivou as decisões atuais (ex.: modelo de trust, bind guard, allowlist de comandos) — as decisões em si continuam valendo, só o motor que as implementa mudou de linguagem.
+
 # Warden
 
 Hub central pra monitorar e gerenciar **todos os projetos locais da máquina** (dockerizados ou não), acessível de forma segura pelo celular. Histórico de nome: MasterHub → MegaHub → **Warden**.
 
-Status atual: fases 1-10 do MVP implementadas (ver `TODO.md`). Existem `TODO.md` (decisões de arquitetura, fonte da verdade), este `CONTEXT.md` (visão + design), dois rascunhos visuais (`mainidea.png`, `fragmentando.png`), e `NEW_CONTEXT.md` (rascunho de arquitetura-alvo pra migração futura Python→C#, só depois das lógicas principais estarem maduras — não iniciar em paralelo ao MVP atual).
+Status atual (histórico): fases 1-10 do MVP em Python implementadas (ver `TODO.md`). Esse MVP foi 100% substituído pela migração C# descrita em `NEW_CONTEXT.md` — as fases abaixo descrevem o design original, não o estado atual do código.
 
 ## Problema
 

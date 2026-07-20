@@ -1,3 +1,4 @@
+using Warden.Contracts.Projects;
 using Warden.Domain;
 using Warden.Domain.Trust;
 
@@ -92,6 +93,32 @@ public static class ProjectEndpoints
             return Results.Ok(new LanguagesDto { Languages = engine.Languages(projectId) });
         });
 
+        group.MapGet("/{projectId}/history", (string projectId, Engine engine, int limit = 50) =>
+        {
+            engine.GetProject(projectId);
+            return Results.Ok(engine.History(projectId, limit).Select(h => new HistoryEventDto
+            {
+                ProjectId = h.ProjectId,
+                Type = h.Type,
+                Message = h.Message,
+                CreatedAt = h.CreatedAt,
+            }));
+        });
+
+        group.MapGet("/{projectId}/actions/audit", (string projectId, Engine engine, int limit = 50) =>
+        {
+            engine.GetProject(projectId);
+            return Results.Ok(engine.ActionAudit(projectId, limit).Select(a => new ActionAuditDto
+            {
+                ProjectId = a.ProjectId,
+                ActionName = a.ActionName,
+                Cmd = a.Cmd,
+                Confirmed = a.Confirmed,
+                ExitCode = a.ExitCode,
+                CreatedAt = a.CreatedAt,
+            }));
+        });
+
         group.MapGet("/{projectId}/git", (string projectId, Engine engine) =>
         {
             engine.GetProject(projectId);
@@ -116,6 +143,9 @@ public static class ProjectEndpoints
                     : null,
             });
         });
+
+        group.MapGet("/{projectId}/config", (string projectId, Engine engine) =>
+            Results.Ok(DiscoveryEndpoints.ToDto(engine.GetProjectConfigFile(projectId))));
 
         group.MapPost("/{projectId}/git/{verb}", (string projectId, string verb, Engine engine, bool confirm = false) =>
         {

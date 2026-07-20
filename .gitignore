@@ -1,11 +1,3 @@
-# python
-engine/.venv/
-engine/__pycache__/
-**/__pycache__/
-*.pyc
-.pytest_cache/
-.ruff_cache/
-
 # node
 web/node_modules/
 web/.next/

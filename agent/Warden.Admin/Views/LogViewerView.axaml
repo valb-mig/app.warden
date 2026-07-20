@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Warden.Admin.ViewModels"
+             xmlns:conv="using:Warden.Admin.Converters"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="360"
+             x:Class="Warden.Admin.Views.LogViewerView"
+             x:DataType="vm:LogViewerViewModel">
+    <Border Classes="card">
+        <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Logs ao vivo" Classes="card-title" />
+                <Ellipse Grid.Column="1" Width="8" Height="8" VerticalAlignment="Center"
+                         Fill="{Binding Connected, Converter={x:Static conv:ConnectedDotConverter.Instance}}"
+                         ToolTip.Tip="{Binding Connected}" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox ItemsSource="{Binding Services}" SelectedItem="{Binding SelectedService}"
+                          PlaceholderText="todos os serviços" MinWidth="140"
+                          IsVisible="{Binding HasServices}" />
+                <TextBox PlaceholderText="buscar nos logs..." Text="{Binding Query}" Width="220" />
+                <ToggleButton Content="só erros" IsChecked="{Binding OnlyErrors}" />
+            </StackPanel>
+
+            <Border Classes="terminal">
+                <ScrollViewer Height="260" Padding="10">
+                    <ItemsControl ItemsSource="{Binding VisibleLines}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LogLineViewModel">
+                                <TextBlock Text="{Binding Text}" Classes="terminal-text" TextWrapping="Wrap"
+                                           Foreground="{Binding IsError, Converter={x:Static conv:ErrorLineBrushConverter.Instance}}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

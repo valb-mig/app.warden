@@ -15,7 +15,7 @@ public partial class App : Application
 
     private MainWindow? _mainWindow;
     private TrayIcon? _trayIcon;
-    private AdminApiClient? _statusClient;
+    private AgentApiClient? _statusClient;
 
     public override void Initialize()
     {
@@ -26,10 +26,15 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            _mainWindow = new MainWindow();
+            var configDir = Environment.GetEnvironmentVariable("WARDEN_CONFIG_DIR")
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".warden");
+            var socketPath = AdminSocketPath.Resolve(configDir);
+            var client = new AgentApiClient(socketPath, configDir);
+
+            _mainWindow = new MainWindow(client);
             desktop.MainWindow = _mainWindow;
             SetupTrayIcon(desktop);
-            StartStatusPolling();
+            StartStatusPolling(configDir);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -64,11 +69,9 @@ public partial class App : Application
         _mainWindow.Activate();
     }
 
-    private void StartStatusPolling()
+    private void StartStatusPolling(string configDir)
     {
-        var configDir = Environment.GetEnvironmentVariable("WARDEN_CONFIG_DIR")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".warden");
-        _statusClient = new AdminApiClient(AdminSocketPath.Resolve(configDir));
+        _statusClient = new AgentApiClient(AdminSocketPath.Resolve(configDir), configDir);
 
         var timer = new DispatcherTimer { Interval = StatusPollInterval };
         timer.Tick += async (_, _) =>
