@@ -59,13 +59,9 @@ export interface GitCommandResult {
   refused: boolean;
 }
 
-export type BackendKind = "python" | "agent";
-
 export interface ApiConfig {
   baseUrl: string;
   token: string;
-  /** "python" (default) = engine FastAPI, WS cru; "agent" = Warden.Agent C#, SignalR. */
-  kind?: BackendKind;
 }
 
 export interface StartConfig {
@@ -202,14 +198,7 @@ export const api = {
   runAction: (c: ApiConfig, id: string, action: string) =>
     request<ActionResult>(c, `/projects/${id}/actions/${action}`, { method: "POST" }),
 
-  wsUrl: (c: ApiConfig, id: string, service?: string) => {
-    const url = new URL(`${c.baseUrl.replace(/^http/, "ws")}/ws/projects/${id}/logs`);
-    url.searchParams.set("token", c.token);
-    if (service) url.searchParams.set("service", service);
-    return url.toString();
-  },
-
-  /** Hub SignalR do Warden.Agent (substitui `wsUrl` quando `config.kind === "agent"`) — auth via `access_token` na query, mesmo truque do WS puro (ver Warden.Agent/Hubs/LogsHub.cs). */
+  /** Hub SignalR do Warden.Agent — auth via `access_token` na query (browser não permite header custom em WS), ver Warden.Agent/Hubs/LogsHub.cs. */
   hubUrl: (c: ApiConfig) => `${c.baseUrl}/hubs/logs`,
 
   services: (c: ApiConfig, id: string) =>

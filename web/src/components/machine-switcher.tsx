@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { type BackendKind, useSettings } from "@/lib/settings";
+import { useSettings } from "@/lib/settings";
 
 export function MachineSwitcher() {
   const { machines, activeMachine, setActiveMachineId, addMachine, removeMachine } = useSettings();
@@ -24,15 +23,13 @@ export function MachineSwitcher() {
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:8420");
   const [token, setToken] = useState("");
-  const [kind, setKind] = useState<BackendKind>("python");
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    addMachine({ name, baseUrl: baseUrl.replace(/\/$/, ""), token, kind });
+    addMachine({ name, baseUrl: baseUrl.replace(/\/$/, ""), token });
     setName("");
     setBaseUrl("http://127.0.0.1:8420");
     setToken("");
-    setKind("python");
     setAdding(false);
     setOpen(false);
   }
@@ -71,11 +68,6 @@ export function MachineSwitcher() {
               >
                 <Server className="size-4" />
                 {m.name}
-                {m.kind === "agent" && (
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    Agent
-                  </span>
-                )}
               </Button>
               <Button
                 variant="ghost"
@@ -91,15 +83,6 @@ export function MachineSwitcher() {
 
         {adding ? (
           <form className="flex flex-col gap-3" onSubmit={handleAdd}>
-            <div className="flex flex-col gap-2">
-              <Label>Backend</Label>
-              <Tabs value={kind} onValueChange={(v) => setKind(v as BackendKind)}>
-                <TabsList>
-                  <TabsTrigger value="python">Python (engine atual)</TabsTrigger>
-                  <TabsTrigger value="agent">Agent (C#, em teste)</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="switcher-name">Nome da máquina</Label>
               <Input
