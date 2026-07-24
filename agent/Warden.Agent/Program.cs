@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics;
@@ -145,19 +146,22 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => Results.Ok(new { service = "warden-agent", status = "ok" }));
 
+app.MapGet("/health", () =>
+{
+    var uptime = (long)(DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalSeconds;
+    return Results.Ok(new { status = "ok", uptime_seconds = uptime });
+});
+
 async ValueTask<object?> RequireToken(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
 {
     var header = context.HttpContext.Request.Headers.Authorization.ToString();
     return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
 }
 
-app.MapGroup("/projects").AddEndpointFilter(RequireToken).MapProjectEndpoints();
-app.MapGroup("/system").AddEndpointFilter(RequireToken).MapSystemEndpoints();
-
-// Descoberta/sincronização (scan-paths/discover/browse) — mesma superfície pública que /projects e
-// /system (não é /admin), protegida pelo mesmo token: o Console/front já chama essas rotas contra o
-// engine Python, o contrato precisa bater 1:1 pro machine-switcher poder trocar de engine.
-app.MapGroup("").AddEndpointFilter(RequireToken).MapDiscoveryEndpoints();
+var v1 = app.MapGroup("/v1").AddEndpointFilter(RequireToken);
+v1.MapGroup("/projects").MapProjectEndpoints();
+v1.MapGroup("/system").MapSystemEndpoints();
+v1.MapDiscoveryEndpoints();
 
 app.MapHub<LogsHub>("/hubs/logs");
 
