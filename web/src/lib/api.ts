@@ -168,82 +168,82 @@ async function request<T>(config: ApiConfig, path: string, init?: RequestInit): 
 }
 
 export const api = {
-  listProjects: (c: ApiConfig) => request<Project[]>(c, "/projects"),
+  listProjects: (c: ApiConfig) => request<Project[]>(c, "/v1/projects"),
 
   start: (c: ApiConfig, id: string) =>
-    request<{ ok: boolean }>(c, `/projects/${id}/start`, { method: "POST" }),
+    request<{ ok: boolean }>(c, `/v1/projects/${id}/start`, { method: "POST" }),
 
   stop: (c: ApiConfig, id: string) =>
-    request<{ ok: boolean }>(c, `/projects/${id}/stop`, { method: "POST" }),
+    request<{ ok: boolean }>(c, `/v1/projects/${id}/stop`, { method: "POST" }),
 
-  status: (c: ApiConfig, id: string) => request<ProjectStatus>(c, `/projects/${id}/status`),
+  status: (c: ApiConfig, id: string) => request<ProjectStatus>(c, `/v1/projects/${id}/status`),
 
   logs: (c: ApiConfig, id: string, tail = 200) =>
-    request<{ lines: string[] }>(c, `/projects/${id}/logs?tail=${tail}`),
+    request<{ lines: string[] }>(c, `/v1/projects/${id}/logs?tail=${tail}`),
 
   history: (c: ApiConfig, id: string, limit = 50) =>
-    request<HistoryEvent[]>(c, `/projects/${id}/history?limit=${limit}`),
+    request<HistoryEvent[]>(c, `/v1/projects/${id}/history?limit=${limit}`),
 
-  git: (c: ApiConfig, id: string) => request<GitInfo | null>(c, `/projects/${id}/git`),
+  git: (c: ApiConfig, id: string) => request<GitInfo | null>(c, `/v1/projects/${id}/git`),
 
   gitCommand: (c: ApiConfig, id: string, verb: GitVerb, confirm = false) =>
     request<GitCommandResult>(
       c,
-      `/projects/${id}/git/${verb}${confirm ? "?confirm=true" : ""}`,
+      `/v1/projects/${id}/git/${verb}${confirm ? "?confirm=true" : ""}`,
       { method: "POST" },
     ),
 
-  listActions: (c: ApiConfig, id: string) => request<Action[]>(c, `/projects/${id}/actions`),
+  listActions: (c: ApiConfig, id: string) => request<Action[]>(c, `/v1/projects/${id}/actions`),
 
   runAction: (c: ApiConfig, id: string, action: string) =>
-    request<ActionResult>(c, `/projects/${id}/actions/${action}`, { method: "POST" }),
+    request<ActionResult>(c, `/v1/projects/${id}/actions/${action}`, { method: "POST" }),
 
   /** Hub SignalR do Warden.Agent — auth via `access_token` na query (browser não permite header custom em WS), ver Warden.Agent/Hubs/LogsHub.cs. */
   hubUrl: (c: ApiConfig) => `${c.baseUrl}/hubs/logs`,
 
   services: (c: ApiConfig, id: string) =>
-    request<{ services: string[]; error_patterns: string[] }>(c, `/projects/${id}/services`),
+    request<{ services: string[]; error_patterns: string[] }>(c, `/v1/projects/${id}/services`),
 
   languages: (c: ApiConfig, id: string) =>
-    request<{ languages: string[] }>(c, `/projects/${id}/languages`),
+    request<{ languages: string[] }>(c, `/v1/projects/${id}/languages`),
 
-  getScanPaths: (c: ApiConfig) => request<{ scan_paths: string[] }>(c, "/scan-paths"),
+  getScanPaths: (c: ApiConfig) => request<{ scan_paths: string[] }>(c, "/v1/scan-paths"),
 
   addScanPath: (c: ApiConfig, path: string) =>
-    request<{ scan_paths: string[] }>(c, "/scan-paths", {
+    request<{ scan_paths: string[] }>(c, "/v1/scan-paths", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     }),
 
   removeScanPath: (c: ApiConfig, path: string) =>
-    request<{ scan_paths: string[] }>(c, "/scan-paths", {
+    request<{ scan_paths: string[] }>(c, "/v1/scan-paths", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     }),
 
-  discover: (c: ApiConfig) => request<{ projects: DiscoveredProject[] }>(c, "/discover"),
+  discover: (c: ApiConfig) => request<{ projects: DiscoveredProject[] }>(c, "/v1/discover"),
 
   browse: (c: ApiConfig, path?: string) =>
-    request<BrowseResult>(c, `/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`),
+    request<BrowseResult>(c, `/v1/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`),
 
-  systemVitals: (c: ApiConfig) => request<SystemVitals>(c, "/system/vitals"),
+  systemVitals: (c: ApiConfig) => request<SystemVitals>(c, "/v1/system/vitals"),
 
   previewConfig: (c: ApiConfig, path: string, id?: string) =>
-    request<ConfigPreview>(c, "/discover/preview", {
+    request<ConfigPreview>(c, "/v1/discover/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path, id: id ?? null }),
     }),
 
   applyConfig: (c: ApiConfig, config: ProjectConfigPayload) =>
-    request<ConfigPreview>(c, "/discover/apply", {
+    request<ConfigPreview>(c, "/v1/discover/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     }),
 
   getProjectConfig: (c: ApiConfig, id: string) =>
-    request<ProjectConfigPayload>(c, `/projects/${id}/config`),
+    request<ProjectConfigPayload>(c, `/v1/projects/${id}/config`),
 };

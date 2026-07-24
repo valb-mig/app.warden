@@ -79,7 +79,7 @@ public sealed class GitApiTests : IAsyncLifetime
     {
         using var unauthenticated = _factory.CreateClient();
 
-        var response = await unauthenticated.GetAsync("/projects/p/git");
+        var response = await unauthenticated.GetAsync("/v1/projects/p/git");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -87,7 +87,7 @@ public sealed class GitApiTests : IAsyncLifetime
     [Fact]
     public async Task GitInfoForUnknownProjectIs404()
     {
-        var response = await _client.GetAsync("/projects/nope/git");
+        var response = await _client.GetAsync("/v1/projects/nope/git");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -95,7 +95,7 @@ public sealed class GitApiTests : IAsyncLifetime
     [Fact]
     public async Task GitInfoReflectsRealRepoState()
     {
-        var info = await _client.GetFromJsonAsync<GitInfoDto>("/projects/p/git", JsonOptions);
+        var info = await _client.GetFromJsonAsync<GitInfoDto>("/v1/projects/p/git", JsonOptions);
 
         Assert.NotNull(info);
         Assert.Equal("main", info!.Branch);
@@ -108,7 +108,7 @@ public sealed class GitApiTests : IAsyncLifetime
     [Fact]
     public async Task GitCommandUnknownVerbIsBadRequest()
     {
-        var response = await _client.PostAsync("/projects/p/git/clone", null);
+        var response = await _client.PostAsync("/v1/projects/p/git/clone", null);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -116,7 +116,7 @@ public sealed class GitApiTests : IAsyncLifetime
     [Fact]
     public async Task GitPullWithoutConfirmIsConflict()
     {
-        var response = await _client.PostAsync("/projects/p/git/pull", null);
+        var response = await _client.PostAsync("/v1/projects/p/git/pull", null);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -126,7 +126,7 @@ public sealed class GitApiTests : IAsyncLifetime
     {
         // Sem remote "origin" configurado o `git fetch` em si falha — mas isso é refletido no corpo
         // (`ok: false`), não num status HTTP de erro (mesmo contrato do endpoint Python).
-        var response = await _client.PostAsync("/projects/p/git/fetch", null);
+        var response = await _client.PostAsync("/v1/projects/p/git/fetch", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<GitCommandResultDto>(JsonOptions);

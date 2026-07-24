@@ -36,7 +36,7 @@ public sealed class LogsHubTests : IAsyncLifetime
     {
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new("Bearer", _factory.ApiToken);
-        await client.PostAsync("/projects/p/stop", null);
+        await client.PostAsync("/v1/projects/p/stop", null);
         _factory.Dispose();
     }
 
@@ -57,7 +57,7 @@ public sealed class LogsHubTests : IAsyncLifetime
         _factory.Services.GetRequiredService<Engine>().Approve("p");
         using var http = _factory.CreateClient();
         http.DefaultRequestHeaders.Authorization = new("Bearer", _factory.ApiToken);
-        await http.PostAsync("/projects/p/start", null);
+        await http.PostAsync("/v1/projects/p/start", null);
 
         var received = new List<string>();
         var gotBothLines = new TaskCompletionSource();

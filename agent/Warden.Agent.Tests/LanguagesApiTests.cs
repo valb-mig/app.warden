@@ -54,7 +54,7 @@ public sealed class LanguagesApiTests : IAsyncLifetime
     {
         using var unauthenticated = _factory.CreateClient();
 
-        var response = await unauthenticated.GetAsync("/projects/p/languages");
+        var response = await unauthenticated.GetAsync("/v1/projects/p/languages");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -62,7 +62,7 @@ public sealed class LanguagesApiTests : IAsyncLifetime
     [Fact]
     public async Task LanguagesForUnknownProjectIs404()
     {
-        var response = await _client.GetAsync("/projects/nope/languages");
+        var response = await _client.GetAsync("/v1/projects/nope/languages");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -70,7 +70,7 @@ public sealed class LanguagesApiTests : IAsyncLifetime
     [Fact]
     public async Task LanguagesReflectsRealManifest()
     {
-        var result = await _client.GetFromJsonAsync<LanguagesDto>("/projects/p/languages", JsonOptions);
+        var result = await _client.GetFromJsonAsync<LanguagesDto>("/v1/projects/p/languages", JsonOptions);
 
         Assert.NotNull(result);
         Assert.Equal(["python"], result!.Languages);

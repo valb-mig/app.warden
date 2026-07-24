@@ -60,7 +60,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _client.PostAsync("/projects/p/stop", null);
+        await _client.PostAsync("/v1/projects/p/stop", null);
         _factory.Dispose();
     }
 
@@ -69,7 +69,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         using var unauthenticated = _factory.CreateClient();
 
-        var response = await unauthenticated.GetAsync("/projects");
+        var response = await unauthenticated.GetAsync("/v1/projects");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -81,7 +81,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "not-the-token");
 
-        var response = await client.GetAsync("/projects");
+        var response = await client.GetAsync("/v1/projects");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -89,7 +89,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     [Fact]
     public async Task ListProjectsReturnsRegisteredProject()
     {
-        var projects = await _client.GetFromJsonAsync<List<ProjectDto>>("/projects", JsonOptions);
+        var projects = await _client.GetFromJsonAsync<List<ProjectDto>>("/v1/projects", JsonOptions);
 
         var project = Assert.Single(projects!);
         Assert.Equal("p", project.Id);
@@ -99,7 +99,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     [Fact]
     public async Task StatusForUnknownProjectIs404()
     {
-        var response = await _client.GetAsync("/projects/nope/status");
+        var response = await _client.GetAsync("/v1/projects/nope/status");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -107,7 +107,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     [Fact]
     public async Task StartRefusedUntilApproved()
     {
-        var response = await _client.PostAsync("/projects/p/start", null);
+        var response = await _client.PostAsync("/v1/projects/p/start", null);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -117,21 +117,21 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var start = await _client.PostAsync("/projects/p/start", null);
+        var start = await _client.PostAsync("/v1/projects/p/start", null);
         Assert.Equal(HttpStatusCode.OK, start.StatusCode);
 
         await WaitUntilAsync(async () =>
         {
-            var status = await _client.GetFromJsonAsync<StatusDto>("/projects/p/status", JsonOptions);
+            var status = await _client.GetFromJsonAsync<StatusDto>("/v1/projects/p/status", JsonOptions);
             return status!.Running;
         });
 
-        var stop = await _client.PostAsync("/projects/p/stop", null);
+        var stop = await _client.PostAsync("/v1/projects/p/stop", null);
         Assert.Equal(HttpStatusCode.OK, stop.StatusCode);
 
         await WaitUntilAsync(async () =>
         {
-            var status = await _client.GetFromJsonAsync<StatusDto>("/projects/p/status", JsonOptions);
+            var status = await _client.GetFromJsonAsync<StatusDto>("/v1/projects/p/status", JsonOptions);
             return !status!.Running;
         });
     }
@@ -139,12 +139,12 @@ public sealed class ProjectApiTests : IAsyncLifetime
     [Fact]
     public async Task ActionsListReflectsApprovalStatus()
     {
-        var beforeApproval = await _client.GetFromJsonAsync<List<ActionDto>>("/projects/p/actions", JsonOptions);
+        var beforeApproval = await _client.GetFromJsonAsync<List<ActionDto>>("/v1/projects/p/actions", JsonOptions);
         Assert.All(beforeApproval!, a => Assert.False(a.Approved));
 
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var afterApproval = await _client.GetFromJsonAsync<List<ActionDto>>("/projects/p/actions", JsonOptions);
+        var afterApproval = await _client.GetFromJsonAsync<List<ActionDto>>("/v1/projects/p/actions", JsonOptions);
         Assert.All(afterApproval!, a => Assert.True(a.Approved));
         Assert.DoesNotContain(afterApproval!, a => a.Name == "start");
     }
@@ -154,7 +154,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var response = await _client.PostAsync("/projects/p/actions/greet", null);
+        var response = await _client.PostAsync("/v1/projects/p/actions/greet", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<ActionResultDto>(JsonOptions);
@@ -167,7 +167,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var response = await _client.PostAsync("/projects/p/actions/wipe", null);
+        var response = await _client.PostAsync("/v1/projects/p/actions/wipe", null);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -177,7 +177,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var response = await _client.PostAsync("/projects/p/actions/wipe?confirm=true", null);
+        var response = await _client.PostAsync("/v1/projects/p/actions/wipe?confirm=true", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -187,7 +187,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var response = await _client.PostAsync("/projects/p/actions/shell", null);
+        var response = await _client.PostAsync("/v1/projects/p/actions/shell", null);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -197,7 +197,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     {
         _factory.Services.GetRequiredService<Engine>().Approve("p");
 
-        var response = await _client.PostAsync("/projects/p/actions/does-not-exist", null);
+        var response = await _client.PostAsync("/v1/projects/p/actions/does-not-exist", null);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -205,7 +205,7 @@ public sealed class ProjectApiTests : IAsyncLifetime
     [Fact]
     public async Task ServicesEndpointReturnsErrorPatterns()
     {
-        var services = await _client.GetFromJsonAsync<ServicesDto>("/projects/p/services", JsonOptions);
+        var services = await _client.GetFromJsonAsync<ServicesDto>("/v1/projects/p/services", JsonOptions);
 
         Assert.NotNull(services);
     }
