@@ -13,4 +13,10 @@ public interface IAdapter
 
     /// <summary>Serviços individuais (ex: containers de um compose). Vazio = processo único.</summary>
     IReadOnlyList<string> Services() => [];
+
+    /// <summary>
+    /// Broadcaster de linhas em tempo real. Null em adapters que não suportam streaming (ex: Docker).
+    /// Subscribers recebem cada linha nova via <see cref="LogBroadcaster.Subscribe"/>.
+    /// </summary>
+    LogBroadcaster? LogBroadcaster => null;
 }

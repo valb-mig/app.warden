@@ -10,6 +10,10 @@ namespace Warden.Agent.Hubs;
 /// via `access_token` na query string: o SignalR client oficial já suporta isso nativamente
 /// (`HttpConnectionOptions.AccessTokenProvider`), e é a mesma solução que o WS puro do Python usava
 /// pra contornar "browser não deixa setar header custom em WebSocket".
+///
+/// Para adapters baseados em processo (ProcessAdapter e subclasses), o streaming é real via
+/// Channel&lt;string&gt; — cada linha chega ao Hub imediatamente sem polling. Para adapters sem broadcaster
+/// (ex: Docker), mantém o fallback de polling a cada 500ms.
 /// </summary>
 public sealed class LogsHub(Engine engine, ChildProcessRegistry childProcesses, ApiTokenProvider tokenProvider) : Hub
 {
@@ -32,10 +36,44 @@ public sealed class LogsHub(Engine engine, ChildProcessRegistry childProcesses, 
     {
         var cts = new CancellationTokenSource();
         Streams[Context.ConnectionId] = cts;
-        _ = PumpAsync(Context.ConnectionId, Clients.Caller, projectId, service, cts.Token);
+
+        var reader = engine.SubscribeLogs(projectId, cts.Token);
+        if (reader is not null)
+        {
+            _ = StreamAsync(Context.ConnectionId, Clients.Caller, projectId, service, reader, cts.Token);
+        }
+        else
+        {
+            _ = PollAsync(Context.ConnectionId, Clients.Caller, projectId, service, cts.Token);
+        }
     }
 
-    private async Task PumpAsync(
+    /// <summary>Streaming real: envia o histórico inicial e depois cada linha nova via Channel.</summary>
+    private async Task StreamAsync(
+        string connectionId, ISingleClientProxy caller, string projectId, string? service,
+        System.Threading.Channels.ChannelReader<string> reader, CancellationToken token)
+    {
+        try
+        {
+            // Histórico já capturado antes da subscrição
+            var history = engine.Logs(projectId, tail: MaxTail, service);
+            if (history.Count > 0)
+                await caller.SendAsync("LogLines", history, token);
+
+            // Linhas novas chegam pelo Channel
+            await foreach (var line in reader.ReadAllAsync(token))
+            {
+                await caller.SendAsync("LogLines", new[] { line }, token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // subscrição cancelada no disconnect — encerramento normal
+        }
+    }
+
+    /// <summary>Fallback de polling para adapters sem broadcaster (ex: Docker).</summary>
+    private async Task PollAsync(
         string connectionId, ISingleClientProxy caller, string projectId, string? service, CancellationToken token)
     {
         var sent = 0;
