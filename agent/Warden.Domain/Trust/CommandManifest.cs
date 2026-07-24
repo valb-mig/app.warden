@@ -8,6 +8,8 @@ public sealed record ManifestCommand
     public required string Cwd { get; init; }
     public bool Interactive { get; init; }
     public bool Destructive { get; init; }
+    /// <summary>Variáveis de ambiente do projeto injetadas ao executar — herdadas do ProjectConfig.Env.</summary>
+    public IReadOnlyDictionary<string, string> Env { get; init; } = new Dictionary<string, string>();
 }
 
 /// <summary>

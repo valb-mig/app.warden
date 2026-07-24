@@ -44,6 +44,8 @@ public sealed class ActionConfig
     public List<string> Cmd { get; init; } = [];
     public bool Interactive { get; init; }
     public bool Destructive { get; init; }
+    /// <summary>Expressão cron 5-campos (min hour day month weekday) para execução automática. Null = sem agendamento.</summary>
+    public string? Cron { get; init; }
 }
 
 public sealed class ProjectConfig
@@ -71,6 +73,8 @@ public sealed class ProjectConfig
     public GitWatchConfig Git { get; init; } = new();
     public List<LogSource> LogSources { get; init; } = [];
     public List<ActionConfig> Actions { get; init; } = [];
+    /// <summary>Variáveis de ambiente injetadas no processo ao iniciar. Gerenciadas pelo Admin (nunca expostas pelo Console).</summary>
+    public Dictionary<string, string> Env { get; init; } = [];
 
     public string DisplayName => Name ?? Id;
 }

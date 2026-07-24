@@ -40,6 +40,37 @@ public static class AdminEndpoints
             return Results.Ok(ToDto(config));
         });
 
+        // Env vars — só pelo socket Admin; valores nunca saem pela rede Console (masked no GET)
+        group.MapGet("/projects/{projectId}/env", (string projectId, Engine engine) =>
+        {
+            var config = engine.GetProjectConfigFile(projectId);
+            var masked = config.Env.ToDictionary(kv => kv.Key, _ => "***");
+            return Results.Ok(masked);
+        });
+
+        group.MapPost("/projects/{projectId}/env", (string projectId, Dictionary<string, string> env, Engine engine) =>
+        {
+            var c = engine.GetProjectConfigFile(projectId);
+            var updated = new ProjectConfig
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Group = c.Group,
+                Path = c.Path,
+                Type = c.Type,
+                ComposeFile = c.ComposeFile,
+                ComposeServices = c.ComposeServices,
+                Start = c.Start,
+                Notify = c.Notify,
+                Git = c.Git,
+                LogSources = c.LogSources,
+                Actions = c.Actions,
+                Env = env,
+            };
+            engine.ApplyConfig(updated);
+            return Results.Ok(env.ToDictionary(kv => kv.Key, _ => "***"));
+        });
+
         return group;
     }
 

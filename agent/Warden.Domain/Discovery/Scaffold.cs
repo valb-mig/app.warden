@@ -121,6 +121,13 @@ public static class Scaffold
             if (ls.ErrorPatterns.Count > 0) sb.Append("error_patterns = ").Append(TomlArray(ls.ErrorPatterns)).Append('\n');
         }
 
+        if (config.Env.Count > 0)
+        {
+            sb.Append("\n[env]\n");
+            foreach (var (key, value) in config.Env)
+                sb.Append(key).Append(" = ").Append(TomlString(value)).Append('\n');
+        }
+
         foreach (var action in config.Actions)
         {
             sb.Append("\n[[actions]]\n");
@@ -128,6 +135,7 @@ public static class Scaffold
             sb.Append("cmd = ").Append(TomlArray(action.Cmd)).Append('\n');
             if (action.Interactive) sb.Append("interactive = true\n");
             if (action.Destructive) sb.Append("destructive = true\n");
+            if (action.Cron is not null) sb.Append("cron = ").Append(TomlString(action.Cron)).Append('\n');
         }
 
         return sb.ToString();
