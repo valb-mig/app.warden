@@ -8,6 +8,7 @@ public enum EventType
     Finished,
     Error,
     GitBehind,
+    CronAction,
 }
 
 public static class EventTypeExtensions
@@ -19,6 +20,7 @@ public static class EventTypeExtensions
         EventType.Finished => "finished",
         EventType.Error => "error",
         EventType.GitBehind => "git_behind",
+        EventType.CronAction => "cron_action",
         _ => throw new ArgumentOutOfRangeException(nameof(type)),
     };
 
@@ -29,6 +31,7 @@ public static class EventTypeExtensions
         "finished" => EventType.Finished,
         "error" => EventType.Error,
         "git_behind" => EventType.GitBehind,
+        "cron_action" => EventType.CronAction,
         _ => throw new ArgumentException($"tipo de evento desconhecido: {value}", nameof(value)),
     };
 }
