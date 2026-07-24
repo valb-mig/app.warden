@@ -117,6 +117,11 @@ function ProjectDetailContent({
   }
 
   const running = status?.running ?? false;
+  const trusted = !status || status.trust_status === "approved";
+  const trustLabel =
+    status?.trust_status === "pending_review"
+      ? "manifesto mudou — aguardando aprovação no Admin"
+      : "projeto nunca aprovado — aprove no Admin antes de iniciar";
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
@@ -133,6 +138,11 @@ function ProjectDetailContent({
               <LanguageIcons config={config} projectId={projectId} />
             </span>
             <span className="flex items-center gap-1.5">
+              {!trusted && (
+                <Badge variant="outline" className="border-yellow-500 text-yellow-600 dark:text-yellow-400">
+                  Aguardando aprovação no Admin
+                </Badge>
+              )}
               {running && (git?.behind ?? 0) > 0 && (
                 <Badge variant="destructive" title="processo rodando uma versão atrás do origin">
                   desatualizado
@@ -168,7 +178,8 @@ function ProjectDetailContent({
           <Button
             className="ml-auto"
             variant={running ? "destructive" : "default"}
-            disabled={pending || !status}
+            disabled={pending || !status || (!running && !trusted)}
+            title={!running && !trusted ? trustLabel : undefined}
             onClick={handleToggle}
           >
             {pending ? (

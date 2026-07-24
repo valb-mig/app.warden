@@ -40,6 +40,7 @@ public static class ProjectEndpoints
         {
             engine.GetProject(projectId);
             var s = engine.Status(projectId);
+            var trust = engine.Manifest(projectId).Status;
             return Results.Ok(new StatusDto
             {
                 Running = s.Running,
@@ -48,6 +49,12 @@ public static class ProjectEndpoints
                 UptimeSeconds = s.UptimeSeconds,
                 CpuPercent = s.CpuPercent,
                 MemoryMb = s.MemoryMb,
+                TrustStatus = trust switch
+                {
+                    TrustStatus.Approved => "approved",
+                    TrustStatus.PendingReview => "pending_review",
+                    _ => "never_approved",
+                },
             });
         });
 

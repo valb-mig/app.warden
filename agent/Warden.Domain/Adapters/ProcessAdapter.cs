@@ -21,6 +21,9 @@ public class ProcessAdapter : IAdapter
     private readonly RingBuffer _logs = new();
     private readonly VitalsSampler _vitals = new();
     private readonly IPortDiscovery _portDiscovery = PortDiscovery.ForCurrentPlatform();
+    private readonly LogBroadcaster _broadcaster = new();
+
+    public LogBroadcaster LogBroadcaster => _broadcaster;
 
     private IPtyConnection? _pty;
     private Process? _plainProcess;
@@ -69,6 +72,7 @@ public class ProcessAdapter : IAdapter
             Cwd = cwd,
             App = ExecutableResolver.Resolve(start.Cmd[0]),
             CommandLine = start.Cmd.Skip(1).ToArray(),
+            Environment = new Dictionary<string, string>(_config.Env),
         };
 
         var pty = PtyProvider.SpawnAsync(options, CancellationToken.None).GetAwaiter().GetResult();
@@ -92,6 +96,7 @@ public class ProcessAdapter : IAdapter
             UseShellExecute = false,
         };
         foreach (var arg in start.Cmd.Skip(1)) psi.ArgumentList.Add(arg);
+        foreach (var (key, value) in _config.Env) psi.Environment[key] = value;
 
         var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         process.Exited += (_, _) =>
@@ -128,8 +133,11 @@ public class ProcessAdapter : IAdapter
         {
             if (pending.Count > 0)
             {
-                _logs.Append(DecodeLine(pending.ToArray()));
+                var line = DecodeLine(pending.ToArray());
+                _logs.Append(line);
+                _broadcaster.Write(line);
             }
+            _broadcaster.Complete();
             pty.Dispose();
         }
     }
@@ -141,7 +149,9 @@ public class ProcessAdapter : IAdapter
         {
             var lineBytes = pending.Take(newlineIndex).ToArray();
             pending.RemoveRange(0, newlineIndex + 1);
-            _logs.Append(DecodeLine(lineBytes));
+            var line = DecodeLine(lineBytes);
+            _logs.Append(line);
+            _broadcaster.Write(line);
         }
     }
 

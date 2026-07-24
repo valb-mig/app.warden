@@ -76,7 +76,7 @@ public sealed class AgentApiClient : IDisposable
     {
         try
         {
-            var response = await _http.GetAsync("/admin/projects", ct);
+            var response = await _http.GetAsync("/health", ct);
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex) when (ex is HttpRequestException or SocketException or IOException)
@@ -88,90 +88,90 @@ public sealed class AgentApiClient : IDisposable
     // ---- Rotas públicas de projeto/sistema (mesmo contrato do web/src/lib/api.ts, exigem bearer token) ----
 
     public Task<IReadOnlyList<ProjectDto>> ListProjectsAsync(CancellationToken ct = default) =>
-        GetAsync<IReadOnlyList<ProjectDto>>("/projects", ct);
+        GetAsync<IReadOnlyList<ProjectDto>>("/v1/projects", ct);
 
     public async Task StartAsync(string projectId, CancellationToken ct = default) =>
-        await SendPostAsync($"/projects/{projectId}/start", ct);
+        await SendPostAsync($"/v1/projects/{projectId}/start", ct);
 
     public async Task StopAsync(string projectId, CancellationToken ct = default) =>
-        await SendPostAsync($"/projects/{projectId}/stop", ct);
+        await SendPostAsync($"/v1/projects/{projectId}/stop", ct);
 
     public Task<StatusDto> GetStatusAsync(string projectId, CancellationToken ct = default) =>
-        GetAsync<StatusDto>($"/projects/{projectId}/status", ct);
+        GetAsync<StatusDto>($"/v1/projects/{projectId}/status", ct);
 
     public Task<LogsDto> GetLogsAsync(string projectId, int tail = 300, string? service = null, CancellationToken ct = default)
     {
         var qs = service is null ? $"?tail={tail}" : $"?tail={tail}&service={Uri.EscapeDataString(service)}";
-        return GetAsync<LogsDto>($"/projects/{projectId}/logs{qs}", ct);
+        return GetAsync<LogsDto>($"/v1/projects/{projectId}/logs{qs}", ct);
     }
 
     public Task<ServicesDto> GetServicesAsync(string projectId, CancellationToken ct = default) =>
-        GetAsync<ServicesDto>($"/projects/{projectId}/services", ct);
+        GetAsync<ServicesDto>($"/v1/projects/{projectId}/services", ct);
 
     public Task<IReadOnlyList<ActionDto>> ListActionsAsync(string projectId, CancellationToken ct = default) =>
-        GetAsync<IReadOnlyList<ActionDto>>($"/projects/{projectId}/actions", ct);
+        GetAsync<IReadOnlyList<ActionDto>>($"/v1/projects/{projectId}/actions", ct);
 
     public async Task<ActionResultDto> RunActionAsync(string projectId, string actionName, bool confirm = false, CancellationToken ct = default)
     {
-        var response = await SendPostAsync($"/projects/{projectId}/actions/{actionName}?confirm={(confirm ? "true" : "false")}", ct);
+        var response = await SendPostAsync($"/v1/projects/{projectId}/actions/{actionName}?confirm={(confirm ? "true" : "false")}", ct);
         return (await response.Content.ReadFromJsonAsync<ActionResultDto>(JsonOptions, ct))!;
     }
 
     public Task<LanguagesDto> GetLanguagesAsync(string projectId, CancellationToken ct = default) =>
-        GetAsync<LanguagesDto>($"/projects/{projectId}/languages", ct);
+        GetAsync<LanguagesDto>($"/v1/projects/{projectId}/languages", ct);
 
     public Task<GitInfoDto?> GetGitInfoAsync(string projectId, CancellationToken ct = default) =>
-        GetAsync<GitInfoDto?>($"/projects/{projectId}/git", ct);
+        GetAsync<GitInfoDto?>($"/v1/projects/{projectId}/git", ct);
 
     public async Task<GitCommandResultDto> GitCommandAsync(string projectId, string verb, bool confirm = false, CancellationToken ct = default)
     {
-        var response = await SendPostAsync($"/projects/{projectId}/git/{verb}?confirm={(confirm ? "true" : "false")}", ct);
+        var response = await SendPostAsync($"/v1/projects/{projectId}/git/{verb}?confirm={(confirm ? "true" : "false")}", ct);
         return (await response.Content.ReadFromJsonAsync<GitCommandResultDto>(JsonOptions, ct))!;
     }
 
     public Task<SystemVitalsDto> GetSystemVitalsAsync(CancellationToken ct = default) =>
-        GetAsync<SystemVitalsDto>("/system/vitals", ct);
+        GetAsync<SystemVitalsDto>("/v1/system/vitals", ct);
 
     public Task<IReadOnlyList<HistoryEventDto>> GetHistoryAsync(string projectId, int limit = 20, CancellationToken ct = default) =>
-        GetAsync<IReadOnlyList<HistoryEventDto>>($"/projects/{projectId}/history?limit={limit}", ct);
+        GetAsync<IReadOnlyList<HistoryEventDto>>($"/v1/projects/{projectId}/history?limit={limit}", ct);
 
     // ---- Descoberta/sincronização de projeto (mesmo contrato, exige bearer token) ----
 
     public Task<ScanPathsDto> GetScanPathsAsync(CancellationToken ct = default) =>
-        GetAsync<ScanPathsDto>("/scan-paths", ct);
+        GetAsync<ScanPathsDto>("/v1/scan-paths", ct);
 
     public async Task<ScanPathsDto> AddScanPathAsync(string path, CancellationToken ct = default)
     {
-        var response = await SendPostJsonAsync("/scan-paths", new { path }, ct);
+        var response = await SendPostJsonAsync("/v1/scan-paths", new { path }, ct);
         return (await response.Content.ReadFromJsonAsync<ScanPathsDto>(JsonOptions, ct))!;
     }
 
     public async Task<ScanPathsDto> RemoveScanPathAsync(string path, CancellationToken ct = default)
     {
-        var response = await SendDeleteJsonAsync("/scan-paths", new { path }, ct);
+        var response = await SendDeleteJsonAsync("/v1/scan-paths", new { path }, ct);
         return (await response.Content.ReadFromJsonAsync<ScanPathsDto>(JsonOptions, ct))!;
     }
 
     public Task<BrowseResultDto> BrowseAsync(string? path, CancellationToken ct = default) =>
-        GetAsync<BrowseResultDto>(path is null ? "/browse" : $"/browse?path={Uri.EscapeDataString(path)}", ct);
+        GetAsync<BrowseResultDto>(path is null ? "/v1/browse" : $"/v1/browse?path={Uri.EscapeDataString(path)}", ct);
 
     public Task<DiscoverResultDto> DiscoverAsync(CancellationToken ct = default) =>
-        GetAsync<DiscoverResultDto>("/discover", ct);
+        GetAsync<DiscoverResultDto>("/v1/discover", ct);
 
     public async Task<ConfigPreviewDto> PreviewConfigAsync(string path, string? id = null, CancellationToken ct = default)
     {
-        var response = await SendPostJsonAsync("/discover/preview", new { path, id }, ct);
+        var response = await SendPostJsonAsync("/v1/discover/preview", new { path, id }, ct);
         return (await response.Content.ReadFromJsonAsync<ConfigPreviewDto>(JsonOptions, ct))!;
     }
 
     public async Task<ConfigPreviewDto> ApplyConfigAsync(ProjectConfigDto config, CancellationToken ct = default)
     {
-        var response = await SendPostJsonAsync("/discover/apply", config, ct);
+        var response = await SendPostJsonAsync("/v1/discover/apply", config, ct);
         return (await response.Content.ReadFromJsonAsync<ConfigPreviewDto>(JsonOptions, ct))!;
     }
 
     public Task<ProjectConfigDto> GetProjectConfigAsync(string projectId, CancellationToken ct = default) =>
-        GetAsync<ProjectConfigDto>($"/projects/{projectId}/config", ct);
+        GetAsync<ProjectConfigDto>($"/v1/projects/{projectId}/config", ct);
 
     // ---- infra ----
 

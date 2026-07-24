@@ -33,6 +33,7 @@ public static class ManifestBuilder
                 Cwd = config.Path,
                 Interactive = action.Interactive,
                 Destructive = action.Destructive,
+                Env = config.Env,
             });
         }
 

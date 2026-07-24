@@ -57,7 +57,7 @@ public sealed class HistoryApiTests : IAsyncLifetime
     {
         using var unauthenticated = _factory.CreateClient();
 
-        var response = await unauthenticated.GetAsync("/projects/p/history");
+        var response = await unauthenticated.GetAsync("/v1/projects/p/history");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -65,7 +65,7 @@ public sealed class HistoryApiTests : IAsyncLifetime
     [Fact]
     public async Task HistoryForUnknownProjectIs404()
     {
-        var response = await _client.GetAsync("/projects/nope/history");
+        var response = await _client.GetAsync("/v1/projects/nope/history");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -73,7 +73,7 @@ public sealed class HistoryApiTests : IAsyncLifetime
     [Fact]
     public async Task HistoryEmptyBeforeAnyEvent()
     {
-        var history = await _client.GetFromJsonAsync<List<HistoryEventDto>>("/projects/p/history", JsonOptions);
+        var history = await _client.GetFromJsonAsync<List<HistoryEventDto>>("/v1/projects/p/history", JsonOptions);
 
         Assert.Empty(history!);
     }
@@ -85,10 +85,10 @@ public sealed class HistoryApiTests : IAsyncLifetime
         var engine = adminScope.ServiceProvider.GetRequiredService<Warden.Domain.Engine>();
         engine.Approve("p");
 
-        await _client.PostAsync("/projects/p/start", null);
-        await _client.PostAsync("/projects/p/stop", null);
+        await _client.PostAsync("/v1/projects/p/start", null);
+        await _client.PostAsync("/v1/projects/p/stop", null);
 
-        var history = await _client.GetFromJsonAsync<List<HistoryEventDto>>("/projects/p/history", JsonOptions);
+        var history = await _client.GetFromJsonAsync<List<HistoryEventDto>>("/v1/projects/p/history", JsonOptions);
 
         Assert.Equal(["stopped", "started"], history!.Select(h => h.Type));
     }
@@ -100,9 +100,9 @@ public sealed class HistoryApiTests : IAsyncLifetime
         var engine = adminScope.ServiceProvider.GetRequiredService<Warden.Domain.Engine>();
         engine.Approve("p");
 
-        await _client.PostAsync("/projects/p/actions/wipe?confirm=true", null);
+        await _client.PostAsync("/v1/projects/p/actions/wipe?confirm=true", null);
 
-        var audit = await _client.GetFromJsonAsync<List<ActionAuditDto>>("/projects/p/actions/audit", JsonOptions);
+        var audit = await _client.GetFromJsonAsync<List<ActionAuditDto>>("/v1/projects/p/actions/audit", JsonOptions);
 
         Assert.Single(audit!);
         Assert.Equal("wipe", audit![0].ActionName);

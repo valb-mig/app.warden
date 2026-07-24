@@ -41,7 +41,7 @@ public sealed class SystemVitalsApiTests : IAsyncLifetime
     {
         using var unauthenticated = _factory.CreateClient();
 
-        var response = await unauthenticated.GetAsync("/system/vitals");
+        var response = await unauthenticated.GetAsync("/v1/system/vitals");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -49,7 +49,7 @@ public sealed class SystemVitalsApiTests : IAsyncLifetime
     [Fact]
     public async Task SystemVitalsReturnsPlausibleShape()
     {
-        var result = await _client.GetFromJsonAsync<SystemVitalsDto>("/system/vitals", JsonOptions);
+        var result = await _client.GetFromJsonAsync<SystemVitalsDto>("/v1/system/vitals", JsonOptions);
 
         Assert.NotNull(result);
         Assert.InRange(result!.MemoryPercent, 0.0, 100.0);

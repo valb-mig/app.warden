@@ -23,6 +23,7 @@ public static class CommandExecutor
             UseShellExecute = false,
         };
         foreach (var arg in command.Argv.Skip(1)) psi.ArgumentList.Add(arg);
+        foreach (var (key, value) in command.Env) psi.Environment[key] = value;
 
         using var process = Process.Start(psi)!;
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
