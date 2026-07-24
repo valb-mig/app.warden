@@ -23,6 +23,8 @@ public sealed record StatusDto
     public double? UptimeSeconds { get; init; }
     public double? CpuPercent { get; init; }
     public double? MemoryMb { get; init; }
+    /// <summary>Valores possíveis: "approved", "pending_review", "never_approved".</summary>
+    public required string TrustStatus { get; init; }
 }
 
 public sealed record LogsDto

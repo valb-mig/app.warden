@@ -14,6 +14,7 @@ export interface ProjectStatus {
   uptime_seconds: number | null;
   cpu_percent: number | null;
   memory_mb: number | null;
+  trust_status: "approved" | "pending_review" | "never_approved";
 }
 
 export interface HistoryEvent {
