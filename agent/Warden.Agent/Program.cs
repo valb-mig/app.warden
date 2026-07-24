@@ -40,10 +40,12 @@ var engine = new Engine(registry, manifestRegistry, eventStore, notifier);
 engine.Boot();
 
 var apiToken = TokenStore.LoadOrCreate(Path.Combine(configDir, "api_token"));
+var scopedTokenStore = new ScopedTokenStore(dbPath);
 
 builder.Services.AddSingleton(engine);
 builder.Services.AddSingleton<ChildProcessRegistry>();
 builder.Services.AddSingleton(new ApiTokenProvider(apiToken));
+builder.Services.AddSingleton(scopedTokenStore);
 
 // Testes usam WebApplicationFactory com Environment="Testing" — não faz sentido exigir Tailscale
 // real nem bindar Kestrel num IP real durante teste (TestServer não escuta rede de verdade mesmo).
@@ -155,7 +157,20 @@ app.MapGet("/health", () =>
 async ValueTask<object?> RequireToken(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
 {
     var header = context.HttpContext.Request.Headers.Authorization.ToString();
-    return header == $"Bearer {apiToken}" ? await next(context) : Results.Unauthorized();
+    if (!header.StartsWith("Bearer ", StringComparison.Ordinal))
+        return Results.Unauthorized();
+
+    var bearer = header["Bearer ".Length..];
+
+    // Master token: acesso irrestrito
+    if (bearer == apiToken) return await next(context);
+
+    // Scoped token: válido apenas em rotas de projeto e somente se o projectId está no escopo
+    var projectId = context.HttpContext.GetRouteValue("projectId")?.ToString();
+    if (projectId is not null && scopedTokenStore.Validate(bearer, projectId))
+        return await next(context);
+
+    return Results.Unauthorized();
 }
 
 var v1 = app.MapGroup("/v1").AddEndpointFilter(RequireToken);
